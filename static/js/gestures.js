@@ -5,14 +5,16 @@
 // 5 index MCP, 17 pinky MCP.
 import { OneEuro } from "/js/tracking.js";
 
-const PINCH_ON = 0.38;     // pinch closes below this (normalized by hand size)
-const PINCH_OFF = 0.54;    // ...and re-opens above this (hysteresis)
+const PINCH_ON = 0.25;     // pinch closes below this (normalized by hand size) — fingertips nearly touching
+const PINCH_OFF = 0.40;    // ...and re-opens above this (hysteresis)
 const PINCH_CONFIRM = 2;   // frames of confirmation before pinch-down fires
 const CLICK_MS = 320;      // max pinch duration for a "click"
 const CLICK_MOVE = 26;     // max cursor travel (px) for a "click"
 const LOST_GRACE_MS = 180; // keep a briefly-lost hand alive this long
 const AMP_X = 1.45;        // camera-to-screen movement amplification
-const AMP_Y = 1.55;
+const AMP_Y = 1.9;         // steeper on Y with a raised pivot: the screen bottom is
+const PIVOT_Y = 0.44;      // reached while the hand is still well inside the frame,
+                           // where tracking stays accurate
 const CLAP_NEAR = 1.15;    // palms closer than this (in hand-sizes) = contact
 const CLAP_FAR = 2.3;      // ...coming from at least this far apart
 const CLAP_WINDOW_MS = 420;
@@ -81,7 +83,7 @@ export class GestureEngine {
     const rawX = 1 - (lm[4].x + lm[8].x) / 2; // mirrored video
     const rawY = (lm[4].y + lm[8].y) / 2;
     const nx = (rawX - 0.5) * AMP_X + 0.5;
-    const ny = (rawY - 0.5) * AMP_Y + 0.47;
+    const ny = (rawY - PIVOT_Y) * AMP_Y + 0.5;
     const px = Math.min(Math.max(nx * innerWidth, 0), innerWidth - 1);
     const py = Math.min(Math.max(ny * innerHeight, 0), innerHeight - 1);
 

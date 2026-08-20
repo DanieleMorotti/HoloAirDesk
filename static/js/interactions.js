@@ -14,14 +14,15 @@ function hitAt(x, y) {
   if (!el) return {};
   return {
     button: el.closest('[data-gesture="button"]'),
-    thumb: el.closest('[data-gesture="scroll"]'),
+    text: el.closest(".hw-text"),
     win: el.closest(".holo-window"),
   };
 }
 
 function otherHandOn(slot, winEl) {
   const other = hands[1 - slot];
-  return (other.mode === "drag" || other.mode === "resize") && other.winEl === winEl ? other : null;
+  const holding = other.mode === "drag" || other.mode === "resize" || other.mode === "scroll";
+  return holding && other.winEl === winEl ? other : null;
 }
 
 function startResize(a, b, winEl) {
@@ -45,19 +46,21 @@ export function onDown(slot, x, y) {
     hand.target = hit.button;
     return;
   }
-  if (hit.thumb && hit.win) {
-    hand.mode = "scroll";
-    hand.winEl = hit.win;
-    hand.startY = y;
-    windows.bringToFront(hit.win);
-    return;
-  }
   if (hit.win) {
     windows.bringToFront(hit.win);
+    // both hands pinching the same window (any part) = resize
     const partner = otherHandOn(slot, hit.win);
     if (partner) {
       partner.winEl.classList.remove("grabbed");
       startResize(hand, partner, hit.win);
+      return;
+    }
+    // pinch inside the text content scrolls it (touch-style);
+    // the window itself is moved by its title bar / borders
+    if (hit.text) {
+      hand.mode = "scroll";
+      hand.winEl = hit.win;
+      hand.startY = y;
       return;
     }
     hand.mode = "drag";
@@ -98,13 +101,10 @@ export function onMove(slot, x, y, pinching) {
       windows.setScale(hand.winEl, hand.resize.startScale * (d / hand.resize.startDist));
     }
   } else if (hand.mode === "scroll" && hand.winEl) {
-    const dy = y - hand.startY;
+    // content follows the hand, compensating for the window's scale
+    const dy = (y - hand.startY) / windows.getScale(hand.winEl);
     hand.startY = y;
-    const textEl = hand.winEl.querySelector(".hw-text");
-    if (textEl) {
-      const rail = hand.winEl.querySelector(".hw-scrollrail").clientHeight;
-      windows.scrollTextWindow(hand.winEl, dy * (textEl.scrollHeight / rail));
-    }
+    windows.scrollTextWindow(hand.winEl, -dy);
   }
 }
 

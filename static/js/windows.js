@@ -100,7 +100,7 @@ async function openText(name) {
   const body = el.querySelector(".hw-body");
   body.style.height = "330px";
   body.innerHTML = `<div class="hw-text">loading…</div>
-    <div class="hw-scrollrail"><div class="hw-thumb" data-gesture="scroll"></div></div>`;
+    <div class="hw-scrollrail"><div class="hw-thumb"></div></div>`;
   const textEl = body.querySelector(".hw-text");
   textEl.style.overflowY = "hidden";
   const thumb = body.querySelector(".hw-thumb");
