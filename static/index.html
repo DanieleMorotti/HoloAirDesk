@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>HoloSpace AI</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@400;500;600;700&family=Share+Tech+Mono&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/css/hud.css">
+</head>
+<body>
+
+<!-- webcam feed, mirrored + dimmed, used both for tracking and as backdrop -->
+<video id="cam" autoplay playsinline muted></video>
+<div id="bg-grid"></div>
+<div id="vignette"></div>
+
+<!-- top status bar -->
+<header id="statusbar">
+  <div class="sb-left">
+    <span class="sb-logo">◈ HOLOSPACE</span>
+    <span class="sb-sep">//</span>
+    <span id="sb-state">BOOTING</span>
+  </div>
+  <div class="sb-right">
+    <span id="sb-hands">HANDS 0</span>
+    <span class="sb-sep">|</span>
+    <span id="sb-fps">-- FPS</span>
+    <span class="sb-sep">|</span>
+    <span id="sb-clock">--:--:--</span>
+  </div>
+</header>
+
+<!-- holographic windows live here -->
+<main id="space"></main>
+
+<!-- clap shockwave -->
+<div id="shockwave"></div>
+
+<!-- hand cursors -->
+<div class="cursor" id="cursor-0"><div class="cursor-dot"></div></div>
+<div class="cursor" id="cursor-1"><div class="cursor-dot"></div></div>
+
+<!-- bottom-right: chat + dock + mic -->
+<aside id="assistant">
+  <div id="chat">
+    <div id="chat-header"><span>◈ HOLO — VOICE LINK</span><button id="chat-clear" data-gesture="button" title="Clear conversation">⟲</button></div>
+    <div id="chat-messages"></div>
+  </div>
+  <div id="controls">
+    <nav id="dock">
+      <button class="dock-btn" id="dock-library" data-gesture="button" title="File library">
+        <svg viewBox="0 0 24 24"><path d="M4 5h5l2 2h9v12H4z" fill="none" stroke="currentColor" stroke-width="1.5"/></svg>
+        <span>FILES</span>
+      </button>
+      <button class="dock-btn" id="dock-help" data-gesture="button" title="Gesture guide">
+        <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9" fill="none" stroke="currentColor" stroke-width="1.5"/><text x="12" y="16.5" text-anchor="middle" font-size="12" fill="currentColor" stroke="none" font-family="inherit">?</text></svg>
+        <span>HELP</span>
+      </button>
+      <button class="dock-btn" id="dock-closeall" data-gesture="button" title="Close all windows">
+        <svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18" fill="none" stroke="currentColor" stroke-width="1.8"/></svg>
+        <span>CLEAR</span>
+      </button>
+    </nav>
+    <button id="mic" data-gesture="button" title="Talk to HOLO">
+      <div class="mic-ring"></div>
+      <div class="mic-ring r2"></div>
+      <svg id="mic-icon" viewBox="0 0 24 24">
+        <rect x="9" y="3" width="6" height="11" rx="3" fill="none" stroke="currentColor" stroke-width="1.6"/>
+        <path d="M5.5 11a6.5 6.5 0 0 0 13 0M12 17.5V21" fill="none" stroke="currentColor" stroke-width="1.6"/>
+      </svg>
+    </button>
+  </div>
+</aside>
+
+<!-- boot screen -->
+<div id="boot">
+  <div class="boot-core">
+    <div class="boot-reactor"><div class="br-ring"></div><div class="br-ring b"></div><div class="br-core"></div></div>
+    <h1>HOLOSPACE <span>AI</span></h1>
+    <ul id="boot-checks">
+      <li data-check="cam">WEBCAM LINK <em>…</em></li>
+      <li data-check="vision">VISION CORE <em>…</em></li>
+      <li data-check="llm">REASONING CORE <em>…</em></li>
+      <li data-check="asr">AUDIO TRANSCODER <em>…</em></li>
+    </ul>
+    <p id="boot-msg">requesting webcam access…</p>
+  </div>
+</div>
+
+<!-- help / gesture guide overlay -->
+<div id="help" class="hidden">
+  <div class="help-panel">
+    <h2>◈ GESTURE INTERFACE</h2>
+    <div class="help-grid">
+      <div class="help-item"><div class="help-glyph">☝</div><div><b>POINT</b><p>Your index finger drives the glowing cursor. Both hands work.</p></div></div>
+      <div class="help-item"><div class="help-glyph">🤏</div><div><b>PINCH = CLICK</b><p>A quick pinch (thumb + index) clicks buttons, icons and files.</p></div></div>
+      <div class="help-item"><div class="help-glyph">✊</div><div><b>HOLD PINCH = DRAG</b><p>Keep the pinch closed on a window to grab and move it.</p></div></div>
+      <div class="help-item"><div class="help-glyph">🙌</div><div><b>TWO-HAND PINCH = RESIZE</b><p>Pinch the sides of a window with both hands, pull apart or together.</p></div></div>
+      <div class="help-item"><div class="help-glyph">👏</div><div><b>CLAP = CLEAR</b><p>Clap your hands to close every open window at once.</p></div></div>
+      <div class="help-item"><div class="help-glyph">🎙</div><div><b>VOICE LINK</b><p>Click the mic, speak, click again to stop. HOLO can open, read, write and delete your files.</p></div></div>
+    </div>
+    <button id="help-close" data-gesture="button">INITIALIZE INTERFACE</button>
+  </div>
+</div>
+
+<div id="toasts"></div>
+
+<script type="module" src="/js/main.js"></script>
+</body>
+</html>
