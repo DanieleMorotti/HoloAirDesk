@@ -245,7 +245,8 @@ button.g-hover, .dock-btn.g-hover, .file-card.g-hover { outline: 1px solid var(-
   display: flex; flex-direction: column; gap: 8px;
   scrollbar-width: thin; scrollbar-color: var(--cyan-dim) transparent;
 }
-.msg { max-width: 88%; padding: 7px 11px; font-size: 14.5px; line-height: 1.4; }
+.msg { max-width: 88%; padding: 7px 11px; font-size: 14.5px; line-height: 1.4; white-space: pre-wrap; word-break: break-word; }
+.msg code { font-family: var(--font-mono); font-size: 12.5px; color: var(--cyan); background: rgba(78,225,255,.08); padding: 0 3px; }
 .msg.user {
   align-self: flex-end; color: #ffd9a8;
   background: rgba(255,180,84,.1); border: 1px solid rgba(255,180,84,.35);

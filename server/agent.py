@@ -83,6 +83,8 @@ def build_system_prompt(open_files: list) -> str:
         "- Be extremely concise: one short sentence when possible, no filler, no markdown.\n"
         "- Always answer in the user's language.\n"
         "- Call tools only when needed, then answer immediately.\n"
+        "- If the user asks to open/show/display a file, call open_file (it shows the file on screen); "
+        "read_file only returns the content to you.\n"
         "- Only text files can be read or written; images and audio can only be opened or deleted.\n"
         "- Never invent files that are not in the library."
     )
@@ -100,7 +102,11 @@ def run_tool(name: str, args: dict):
         if name == "read_file":
             return read_text_file(fname), None
         if name == "write_file":
-            write_text_file(fname, args.get("content") or "")
+            content = args.get("content") or ""
+            # small models sometimes double-escape newlines in tool arguments
+            if "\\n" in content and "\n" not in content:
+                content = content.replace("\\r\\n", "\n").replace("\\n", "\n").replace("\\t", "\t")
+            write_text_file(fname, content)
             return f"{fname} saved.", {"type": "file_changed", "name": fname, "kind": file_kind(fname)}
         if name == "delete_file":
             delete_file(fname)

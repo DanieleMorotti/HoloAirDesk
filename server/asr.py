@@ -8,6 +8,10 @@ from fastapi import APIRouter, HTTPException, UploadFile, Form, File
 
 from .config import WHISPER_URL
 
+# "auto" detects EN/IT per utterance (~+0.8s); pin "en" or "it" for lowest latency
+import os
+DEFAULT_LANG = os.environ.get("HOLO_ASR_LANG", "auto")
+
 router = APIRouter()
 
 
@@ -23,7 +27,8 @@ async def _to_wav16k(src: Path, dst: Path) -> None:
 
 
 @router.post("/api/transcribe")
-async def api_transcribe(audio: UploadFile = File(...), language: str = Form("auto")):
+async def api_transcribe(audio: UploadFile = File(...), language: str = Form("")):
+    language = language or DEFAULT_LANG
     raw = await audio.read()
     if not raw:
         raise HTTPException(400, "empty audio")
@@ -45,9 +50,9 @@ async def api_transcribe(audio: UploadFile = File(...), language: str = Form("au
                     data={
                         "response_format": "json",
                         "temperature": "0.0",
-                        "language": language or "auto",
-                        # short utterances: single segment beam keeps latency low
-                        "beam_size": "2",
+                        "language": language,
+                        # greedy decoding: turbo models are tuned for it, ~2x faster
+                        "beam_size": "1",
                     },
                 )
             except httpx.HTTPError as e:
@@ -55,5 +60,6 @@ async def api_transcribe(audio: UploadFile = File(...), language: str = Form("au
 
     if resp.status_code != 200:
         raise HTTPException(502, f"whisper-server error: {resp.text[:300]}")
-    text = (resp.json().get("text") or "").strip()
+    # whisper may wrap segments with newlines: collapse to single spaces
+    text = " ".join((resp.json().get("text") or "").split())
     return {"text": text}
