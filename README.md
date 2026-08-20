@@ -13,7 +13,7 @@ your library — everything runs on-device.
 | Hand tracking | MediaPipe HandLandmarker (vendored, GPU delegate) + One-Euro smoothing |
 | UI | Vanilla ES modules, no build step |
 | Backend | FastAPI + uvicorn |
-| LLM agent | `llama-server` (llama.cpp) — LFM2.5-2.6B by default, Qwen3.5-4B optional |
+| LLM agent | OpenAI Agents SDK over `llama-server` (llama.cpp) — LFM2.5-2.6B default, Qwen3.5-4B optional |
 | Speech-to-text | `whisper-server` (whisper.cpp, Metal) — `large-v3-turbo` q5, EN + IT |
 
 ## Requirements
@@ -21,7 +21,8 @@ your library — everything runs on-device.
 - macOS with Apple Silicon (Metal), webcam
 - `llama.cpp` and `whisper-cpp` (both via Homebrew)
 - `ffmpeg`
-- Python 3.9+ with `pip install -r requirements.txt`
+- Python 3.10+ (the agent SDK needs it):
+  `python3.12 -m venv .venv && ./.venv/bin/pip install -r requirements.txt`
 - Model weights in `models/` (not tracked by git):
   - `LFM2.5-2.6B-Q8_0.gguf` (default agent) / `Qwen3.5-4B-Q8_0.gguf`
   - `ggml-large-v3-turbo-q5_0.bin` (whisper)
@@ -48,9 +49,9 @@ and shuts everything down together on Ctrl-C.
 |---|---|
 | Point (index + thumb) | Move the cursor — both hands work |
 | Quick pinch | Click (buttons, dock, file cards, window ✕) |
-| Hold pinch on a window | Grab and drag it |
+| Hold pinch on a title bar | Grab and drag the window (images/audio: anywhere) |
+| Pinch inside a text file | Scroll it — the content follows your hand |
 | Both hands pinch a window | Resize by pulling apart / together |
-| Pinch the scroll rail | Scroll a text window |
 | Clap | Close every open window |
 
 ## Voice assistant
@@ -59,7 +60,8 @@ Click the mic (bottom right), speak (English or Italian), click again to stop.
 The transcription is sent to HOLO, which can call tools:
 `open_file`, `read_file`, `write_file`, `delete_file`. If it modifies a file
 that is open on screen, the window refreshes live. HOLO always knows which
-files are currently open.
+files are currently open, and remembers the last 10 chat messages (tool
+traffic and thinking tracks are not kept in the context).
 
 ## Library
 

@@ -8,6 +8,13 @@
 set -euo pipefail
 cd "$(dirname "$0")"
 
+PY="./.venv/bin/python"
+if [[ ! -x "$PY" ]]; then
+  echo "[holospace] no .venv found — create it with:"
+  echo "  python3.12 -m venv .venv && ./.venv/bin/pip install -r requirements.txt"
+  exit 1
+fi
+
 APP_PORT="${HOLO_PORT:-8000}"
 LLAMA_PORT=8080
 WHISPER_PORT=8091
@@ -22,7 +29,7 @@ mkdir -p logs
 
 echo "[holospace] starting llama-server ($LLM_MODEL) on :$LLAMA_PORT"
 llama-server -m "$LLM_MODEL" --host 127.0.0.1 --port "$LLAMA_PORT" \
-  -c 8192 -ngl 99 --jinja > logs/llama.log 2>&1 &
+  -c 16384 -ngl 99 --jinja > logs/llama.log 2>&1 &
 LLAMA_PID=$!
 
 echo "[holospace] starting whisper-server ($WHISPER_MODEL) on :$WHISPER_PORT"
@@ -45,9 +52,9 @@ if [[ "${1:-}" == "--lan" ]]; then
       -keyout certs/holo.key -out certs/holo.crt -subj "/CN=holospace.local" 2>/dev/null
   fi
   echo "[holospace] app on https://$(ipconfig getifaddr en0 2>/dev/null || echo 0.0.0.0):8443 (accept the self-signed cert)"
-  python3 -m uvicorn server.main:app --host 0.0.0.0 --port 8443 \
+  "$PY" -m uvicorn server.main:app --host 0.0.0.0 --port 8443 \
     --ssl-keyfile certs/holo.key --ssl-certfile certs/holo.crt
 else
   echo "[holospace] app on http://localhost:$APP_PORT"
-  python3 -m uvicorn server.main:app --host 127.0.0.1 --port "$APP_PORT"
+  "$PY" -m uvicorn server.main:app --host 127.0.0.1 --port "$APP_PORT"
 fi

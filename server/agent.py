@@ -1,119 +1,137 @@
-"""HOLO agent: streams a llama.cpp chat completion, executes file tools,
-and relays everything to the browser as Server-Sent Events."""
-import json
-from typing import AsyncIterator, Optional
+"""HOLO agent on the OpenAI Agents SDK, backed by the local llama-server.
 
-import httpx
+The SDK drives the tool loop; we just bridge its stream to SSE events the
+browser understands, and keep a short per-session history (last 10 user /
+assistant messages, no tool traffic, no thinking tracks).
+"""
+import json
+import re
+from typing import AsyncIterator
+
+from agents import (
+    Agent,
+    ModelSettings,
+    OpenAIChatCompletionsModel,
+    Runner,
+    function_tool,
+    set_tracing_disabled,
+)
 from fastapi import APIRouter
 from fastapi.responses import StreamingResponse
+from openai import AsyncOpenAI
 from pydantic import BaseModel
 
-from .config import LLAMA_URL, LLM_TEMPERATURE, MAX_HISTORY_MESSAGES, MAX_TOOL_ROUNDS, file_kind
+from .config import LLAMA_URL, LLM_TEMPERATURE, file_kind
 from .files import delete_file, list_files, read_text_file, safe_path, write_text_file
 
 router = APIRouter()
+set_tracing_disabled(True)  # local-only, no OpenAI backend
 
-# In-process chat history, one list of OpenAI-style messages per browser session.
-SESSIONS: dict = {}
+llm = OpenAIChatCompletionsModel(
+    model="default",
+    openai_client=AsyncOpenAI(base_url=f"{LLAMA_URL}/v1", api_key="local"),
+)
 
-TOOLS = [
-    {
-        "type": "function",
-        "function": {
-            "name": "open_file",
-            "description": "Open a library file in a holographic window on the user's screen. Works for text, image and audio files.",
-            "parameters": {
-                "type": "object",
-                "properties": {"name": {"type": "string", "description": "Exact file name from the library"}},
-                "required": ["name"],
-            },
-        },
-    },
-    {
-        "type": "function",
-        "function": {
-            "name": "read_file",
-            "description": "Read the content of a TEXT file from the library. Images and audio cannot be read.",
-            "parameters": {
-                "type": "object",
-                "properties": {"name": {"type": "string", "description": "Exact file name from the library"}},
-                "required": ["name"],
-            },
-        },
-    },
-    {
-        "type": "function",
-        "function": {
-            "name": "write_file",
-            "description": "Create a new TEXT file or overwrite an existing one with the given content.",
-            "parameters": {
-                "type": "object",
-                "properties": {
-                    "name": {"type": "string", "description": "File name, e.g. notes.txt"},
-                    "content": {"type": "string", "description": "Full new content of the file"},
-                },
-                "required": ["name", "content"],
-            },
-        },
-    },
-    {
-        "type": "function",
-        "function": {
-            "name": "delete_file",
-            "description": "Permanently delete a file from the library.",
-            "parameters": {
-                "type": "object",
-                "properties": {"name": {"type": "string", "description": "Exact file name from the library"}},
-                "required": ["name"],
-            },
-        },
-    },
-]
+MAX_HISTORY = 10
+MAX_TURNS = 6
+SESSIONS: dict = {}  # session_id -> [{"role","content"}, ...]
+THINK_RE = re.compile(r"<think>.*?(</think>|$)\s*", re.DOTALL)
 
 
-def build_system_prompt(open_files: list) -> str:
+@function_tool
+def open_file(name: str) -> str:
+    """Open a library file in a holographic window on the user's screen. Works for text, image and audio files.
+
+    Args:
+        name: Exact file name from the library.
+    """
+    try:
+        if not safe_path(name).exists():
+            return f"Error: {name} not found in library."
+    except ValueError as e:
+        return f"Error: {e}"
+    return f"{name} is now open on screen."
+
+
+@function_tool
+def read_file(name: str) -> str:
+    """Read the content of a TEXT file from the library. Images and audio cannot be read.
+
+    Args:
+        name: Exact file name from the library.
+    """
+    try:
+        return read_text_file(name)
+    except (ValueError, FileNotFoundError) as e:
+        return f"Error: {e}"
+
+
+@function_tool
+def write_file(name: str, content: str) -> str:
+    """Create a new TEXT file or overwrite an existing one with the given content.
+
+    Args:
+        name: File name, e.g. notes.txt.
+        content: Full new content of the file.
+    """
+    # small models sometimes double-escape newlines in tool arguments
+    if "\\n" in content and "\n" not in content:
+        content = content.replace("\\r\\n", "\n").replace("\\n", "\n").replace("\\t", "\t")
+    try:
+        write_text_file(name, content)
+    except ValueError as e:
+        return f"Error: {e}"
+    return f"{name} saved."
+
+
+@function_tool(name_override="delete_file")
+def delete_file_tool(name: str) -> str:
+    """Permanently delete a file from the library.
+
+    Args:
+        name: Exact file name from the library.
+    """
+    try:
+        delete_file(name)
+    except (ValueError, FileNotFoundError) as e:
+        return f"Error: {e}"
+    return f"{name} deleted."
+
+
+TOOLS = [open_file, read_file, write_file, delete_file_tool]
+
+# tool name -> UI event sent to the browser on success
+UI_EVENTS = {
+    "open_file": lambda a: {"type": "open_file", "name": a.get("name", "")},
+    "write_file": lambda a: {"type": "file_changed", "name": a.get("name", ""),
+                             "kind": file_kind(a.get("name", ""))},
+    "delete_file": lambda a: {"type": "file_deleted", "name": a.get("name", "")},
+}
+
+
+def build_agent(open_files: list) -> Agent:
     lib = ", ".join(f"{f['name']} ({f['kind']})" for f in list_files()) or "(empty)"
     opened = ", ".join(open_files) if open_files else "(none)"
-    return (
-        "You are HOLO, the voice assistant of a holographic desktop. "
-        "The user talks by voice; replies are shown in a small chat panel.\n"
-        f"Library files: {lib}\n"
-        f"Files currently open on screen: {opened}\n"
-        "Rules:\n"
-        "- Be extremely concise: one short sentence when possible, no filler, no markdown.\n"
-        "- Always answer in the user's language.\n"
-        "- Call tools only when needed, then answer immediately.\n"
-        "- If the user asks to open/show/display a file, call open_file (it shows the file on screen); "
-        "read_file only returns the content to you.\n"
-        "- Only text files can be read or written; images and audio can only be opened or deleted.\n"
-        "- Never invent files that are not in the library."
+    return Agent(
+        name="HOLO",
+        model=llm,
+        model_settings=ModelSettings(temperature=LLM_TEMPERATURE),
+        tools=TOOLS,
+        instructions=(
+            "You are HOLO, the voice assistant of a holographic desktop. "
+            "The user talks by voice; replies are shown in a small chat panel.\n"
+            f"Library files: {lib}\n"
+            f"Files currently open on screen: {opened}\n"
+            "Rules:\n"
+            "- Be extremely concise: one short sentence when possible, no filler, no markdown.\n"
+            "- Always answer in the user's language.\n"
+            "- Call tools only when needed, then answer immediately.\n"
+            "- If the user asks to open/show/display a file, call open_file (it shows the file "
+            "on screen); read_file only returns the content to you.\n"
+            "- Only text files can be read or written; images and audio can only be opened or deleted.\n"
+            "- Never invent files that are not in the library."
+        ),
     )
-
-
-def run_tool(name: str, args: dict):
-    """Execute one tool. Returns (result_text_for_model, ui_event_or_None)."""
-    fname = (args.get("name") or "").strip()
-    try:
-        if name == "open_file":
-            path = safe_path(fname)
-            if not path.exists():
-                return f"Error: {fname} not found in library.", None
-            return f"{fname} is now open on screen.", {"type": "open_file", "name": fname}
-        if name == "read_file":
-            return read_text_file(fname), None
-        if name == "write_file":
-            content = args.get("content") or ""
-            # small models sometimes double-escape newlines in tool arguments
-            if "\\n" in content and "\n" not in content:
-                content = content.replace("\\r\\n", "\n").replace("\\n", "\n").replace("\\t", "\t")
-            write_text_file(fname, content)
-            return f"{fname} saved.", {"type": "file_changed", "name": fname, "kind": file_kind(fname)}
-        if name == "delete_file":
-            delete_file(fname)
-            return f"{fname} deleted.", {"type": "file_deleted", "name": fname}
-        return f"Error: unknown tool {name}.", None
-    except (ValueError, FileNotFoundError) as e:
-        return f"Error: {e}", None
 
 
 class ChatRequest(BaseModel):
@@ -126,109 +144,46 @@ def sse(payload: dict) -> str:
     return f"data: {json.dumps(payload, ensure_ascii=False)}\n\n"
 
 
-async def stream_completion(client: httpx.AsyncClient, messages: list):
-    """One streamed llama-server round. Yields ('delta', text) chunks and finally
-    ('end', (content, tool_calls))."""
-    content_parts = []
-    tool_calls: dict = {}  # index -> {id, name, arguments}
-    payload = {
-        "model": "default",
-        "messages": messages,
-        "tools": TOOLS,
-        "stream": True,
-        "temperature": LLM_TEMPERATURE,
-    }
-    async with client.stream("POST", f"{LLAMA_URL}/v1/chat/completions", json=payload) as resp:
-        resp.raise_for_status()
-        async for line in resp.aiter_lines():
-            if not line.startswith("data: "):
-                continue
-            data = line[6:].strip()
-            if data == "[DONE]":
-                break
-            try:
-                chunk = json.loads(data)
-            except json.JSONDecodeError:
-                continue
-            choices = chunk.get("choices") or []
-            if not choices:
-                continue
-            delta = choices[0].get("delta") or {}
-            if delta.get("content"):
-                content_parts.append(delta["content"])
-                yield "delta", delta["content"]
-            for tc in delta.get("tool_calls") or []:
-                idx = tc.get("index", 0)
-                slot = tool_calls.setdefault(idx, {"id": None, "name": "", "arguments": ""})
-                if tc.get("id"):
-                    slot["id"] = tc["id"]
-                fn = tc.get("function") or {}
-                if fn.get("name"):
-                    slot["name"] = fn["name"]
-                if fn.get("arguments"):
-                    slot["arguments"] += fn["arguments"]
-    calls = [tool_calls[i] for i in sorted(tool_calls)]
-    yield "end", ("".join(content_parts), calls)
-
-
 async def agent_events(req: ChatRequest) -> AsyncIterator[str]:
     history = SESSIONS.setdefault(req.session_id, [])
-    history.append({"role": "user", "content": req.message})
-    del history[:-MAX_HISTORY_MESSAGES]
-    messages = [{"role": "system", "content": build_system_prompt(req.open_files)}] + list(history)
+    agent = build_agent(req.open_files)
+    calls = {}  # call_id -> (tool_name, args)
 
     try:
-        async with httpx.AsyncClient(timeout=httpx.Timeout(120, connect=5)) as client:
-            for _ in range(MAX_TOOL_ROUNDS):
-                content, calls = "", []
-                async for kind, value in stream_completion(client, messages):
-                    if kind == "delta":
-                        yield sse({"type": "delta", "text": value})
-                    else:
-                        content, calls = value
-
-                if not calls:
-                    history.append({"role": "assistant", "content": content})
-                    yield sse({"type": "done"})
-                    return
-
-                assistant_msg = {
-                    "role": "assistant",
-                    "content": content or None,
-                    "tool_calls": [
-                        {
-                            "id": c["id"] or f"call_{i}",
-                            "type": "function",
-                            "function": {"name": c["name"], "arguments": c["arguments"] or "{}"},
-                        }
-                        for i, c in enumerate(calls)
-                    ],
-                }
-                messages.append(assistant_msg)
-                history.append(assistant_msg)
-
-                for i, call in enumerate(calls):
+        result = Runner.run_streamed(
+            agent,
+            input=history[-MAX_HISTORY:] + [{"role": "user", "content": req.message}],
+            max_turns=MAX_TURNS,
+        )
+        async for event in result.stream_events():
+            if event.type == "raw_response_event":
+                if getattr(event.data, "type", "") == "response.output_text.delta":
+                    yield sse({"type": "delta", "text": event.data.delta})
+            elif event.type == "run_item_stream_event":
+                item = event.item
+                if item.type == "tool_call_item":
+                    raw = item.raw_item
                     try:
-                        args = json.loads(call["arguments"] or "{}")
+                        args = json.loads(getattr(raw, "arguments", "") or "{}")
                     except json.JSONDecodeError:
                         args = {}
-                    yield sse({"type": "tool", "name": call["name"], "args": args})
-                    result, event = run_tool(call["name"], args)
-                    if event:
-                        yield sse(event)
-                    tool_msg = {
-                        "role": "tool",
-                        "tool_call_id": call["id"] or f"call_{i}",
-                        "content": result,
-                    }
-                    messages.append(tool_msg)
-                    history.append(tool_msg)
+                    calls[getattr(raw, "call_id", "")] = (raw.name, args)
+                    yield sse({"type": "tool", "name": raw.name, "args": args})
+                elif item.type == "tool_call_output_item":
+                    raw = item.raw_item
+                    call_id = raw.get("call_id", "") if isinstance(raw, dict) else getattr(raw, "call_id", "")
+                    name, args = calls.get(call_id, ("", {}))
+                    output = str(item.output or "")
+                    if name in UI_EVENTS and not output.startswith("Error"):
+                        yield sse(UI_EVENTS[name](args))
 
-            yield sse({"type": "error", "message": "tool round limit reached"})
-            yield sse({"type": "done"})
-    except httpx.HTTPError as e:
-        yield sse({"type": "error", "message": f"LLM server error: {e}"})
-        yield sse({"type": "done"})
+        final = THINK_RE.sub("", str(result.final_output or "")).strip()
+        history.append({"role": "user", "content": req.message})
+        history.append({"role": "assistant", "content": final})
+        del history[:-MAX_HISTORY]
+    except Exception as e:  # MaxTurnsExceeded, model/server errors, ...
+        yield sse({"type": "error", "message": f"agent error: {e}"})
+    yield sse({"type": "done"})
 
 
 @router.post("/api/chat")

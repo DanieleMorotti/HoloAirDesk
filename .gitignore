@@ -6,3 +6,4 @@ certs/
 # large model weights are not tracked
 models/*.gguf
 models/*.bin
+.venv/
