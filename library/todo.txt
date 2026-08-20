@@ -1,0 +1,6 @@
+TODO
+[ ] Calibrate gesture thresholds for low-light rooms
+[ ] Order more coffee for the lab
+[ ] Review orbital scan of sector 7G
+[ ] Fix the coolant hum at 220 Hz
+[x] Install voice interface

@@ -1,0 +1,16 @@
+MISSION BRIEF — OPERATION NIGHTFALL
+Classification: EYES ONLY
+
+Objective:
+Recover the prototype power cell from the abandoned research
+facility in sector 7G before the storm front reaches the coast.
+
+Timeline:
+  22:00  Insertion via the north ridge
+  22:40  Bypass perimeter sensors (see satellite_scan.png)
+  23:15  Extraction window opens — 12 minutes only
+
+Notes:
+- Thermal shielding required beyond checkpoint two.
+- Radio silence after insertion; HOLO uplink stays available.
+- Abort code: "GLASS HORIZON".
