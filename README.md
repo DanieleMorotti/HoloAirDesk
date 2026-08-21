@@ -11,6 +11,7 @@ your library — everything runs on-device.
 | Piece | Tech |
 |---|---|
 | Hand tracking | MediaPipe HandLandmarker (vendored, GPU delegate) + One-Euro smoothing |
+| Head pointer (optional) | MediaPipe FaceLandmarker — head steers the cursor, hands pinch |
 | UI | Vanilla ES modules, no build step |
 | Backend | FastAPI + uvicorn |
 | LLM agent | OpenAI Agents SDK over `llama-server` (llama.cpp) — LFM2.5-2.6B default, Qwen3.5-4B optional |
@@ -53,6 +54,19 @@ and shuts everything down together on Ctrl-C.
 | Pinch inside a text file | Slide vertically to scroll, horizontally to select text |
 | Both hands pinch a window | Resize by pulling apart / together |
 | Clap | Close every open window |
+
+### Head pointer mode
+
+The HEAD button in the dock switches to a hybrid mode: **your head steers a
+single cursor, your hands only pinch** to click and drag (two-hand resize is
+hands-mode only; the clap still works). Enabling it starts a guided
+calibration: sit in your natural pose, keep your eyes on the center ring, and
+when the button unlocks press **SET CENTER** — it captures your pose from the
+~2.5 seconds before the press, and that pose becomes "cursor at center".
+Toggle HEAD off and on to recalibrate anytime. The pointer is anchored to
+rigid skull landmarks, so blinking and facial expressions don't move it, and
+it works at any distance from the camera. Sensitivity and smoothing knobs
+live at the top of `static/js/headpointer.js`.
 
 ## Voice assistant
 
