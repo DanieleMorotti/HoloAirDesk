@@ -98,29 +98,46 @@ body.headmode #cursor-0 .cursor-dot { background: #7dffb0; box-shadow: 0 0 10px 
 body.headmode #cursor-0.pinch::before { border-color: var(--amber); }
 body.headmode #dock-head { border-color: #7dffb0; color: #7dffb0; background: rgba(125,255,176,.08); }
 
-/* head pointer calibration target */
-#head-calib {
-  position: fixed; left: 50%; top: 50%; transform: translate(-50%, -50%);
-  z-index: 4500; pointer-events: none; text-align: center;
-}
+/* head pointer calibration */
+#head-calib { position: fixed; inset: 0; z-index: 4500; pointer-events: none; }
 #head-calib.hidden { display: none; }
+/* the ring sits at the exact screen center — that is the point to look at */
+#head-calib .hc-target {
+  position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%);
+  width: 90px; height: 90px;
+}
 #head-calib .hc-ring {
-  width: 90px; height: 90px; margin: 0 auto; border-radius: 50%;
+  width: 100%; height: 100%; border-radius: 50%;
   border: 2px solid #7dffb0;
   box-shadow: 0 0 24px rgba(125,255,176,.5), inset 0 0 16px rgba(125,255,176,.15);
   animation: hc-pulse 1s ease-in-out infinite;
 }
 #head-calib .hc-dot {
-  position: absolute; left: 50%; top: 45px; transform: translate(-50%, -50%);
+  position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%);
   width: 10px; height: 10px; border-radius: 50%;
   background: #7dffb0; box-shadow: 0 0 12px #7dffb0;
 }
-#head-calib p {
-  margin-top: 14px; font-family: var(--font-mono); font-size: 12px;
-  letter-spacing: 3px; color: #7dffb0; text-shadow: 0 0 10px rgba(125,255,176,.6);
+/* instructions panel below the ring */
+#head-calib .hc-panel {
+  position: absolute; left: 50%; top: calc(50% + 80px); transform: translateX(-50%);
+  width: min(520px, 90vw); padding: 18px 24px; text-align: center;
+  background: var(--panel); border: 1px solid rgba(125,255,176,.4);
+  backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px);
+  clip-path: polygon(14px 0, 100% 0, 100% calc(100% - 14px), calc(100% - 14px) 100%, 0 100%, 0 14px);
 }
+#head-calib .hc-title {
+  font-family: var(--font-mono); font-size: 13px; letter-spacing: 4px;
+  color: #7dffb0; text-shadow: 0 0 10px rgba(125,255,176,.6); margin-bottom: 12px;
+}
+#head-calib ol {
+  text-align: left; margin: 0 0 10px 20px; font-size: 14px; line-height: 1.5;
+  color: var(--text);
+}
+#head-calib ol li { margin-bottom: 6px; }
+#head-calib ol b { color: #7dffb0; }
+#head-calib .hc-hint { font-size: 12px; opacity: .6; margin-bottom: 4px; }
 #head-calib-btn {
-  pointer-events: auto; margin-top: 16px; padding: 12px 32px;
+  pointer-events: auto; margin-top: 10px; padding: 12px 32px;
   background: rgba(125,255,176,.1); border: 1px solid #7dffb0; color: #7dffb0;
   font-family: var(--font-mono); font-size: 13px; letter-spacing: 3px; cursor: pointer;
   clip-path: polygon(10px 0, 100% 0, 100% calc(100% - 10px), calc(100% - 10px) 100%, 0 100%, 0 10px);

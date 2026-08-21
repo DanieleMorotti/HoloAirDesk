@@ -40,10 +40,17 @@
 
 <!-- head pointer calibration target -->
 <div id="head-calib" class="hidden">
-  <div class="hc-ring"></div>
-  <div class="hc-dot"></div>
-  <p>LOOK AT THE RING WITH A COMFORTABLE, NEUTRAL HEAD POSE</p>
-  <button id="head-calib-btn" data-gesture="button" disabled>HOLD STILL</button>
+  <div class="hc-target"><div class="hc-ring"></div><div class="hc-dot"></div></div>
+  <div class="hc-panel">
+    <p class="hc-title">◈ HEAD POINTER SETUP</p>
+    <ol>
+      <li>Sit the way you would for a long session — relaxed, facing the screen. <b>This pose becomes "cursor at center".</b></li>
+      <li>Keep your <b>eyes on the ring</b> and your head still. You don't have to aim your nose anywhere.</li>
+      <li>The button below counts down while it samples your pose. When it shows <b>SET CENTER</b>, pinch or click it.</li>
+    </ol>
+    <p class="hc-hint">Your hands keep working during setup. Recalibrate anytime by toggling HEAD off and on.</p>
+    <button id="head-calib-btn" data-gesture="button" disabled>HOLD STILL</button>
+  </div>
 </div>
 
 <!-- hand cursors -->

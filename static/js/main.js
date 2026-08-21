@@ -69,31 +69,45 @@ async function boot() {
     onHands: hud.tickFrame,
   });
   // magnetic cursor (head mode): near a button the pointer locks onto its
-  // center, so micro-jitter cannot shake it off a small target
+  // center, so micro-jitter cannot shake it off a small target. The raw head
+  // position is always compared against ALL targets: when a different button
+  // becomes clearly closer than the locked one, the lock hops directly to it
+  // (no need to escape into empty space first) — adjacent buttons behave
+  // like notches you click between.
   let magnetEl = null;
   function magnet(hp) {
     if (!hp.present) { magnetEl = null; return hp; }
-    const ENTER_R = 38, EXIT_R = 58;
+    const ACQUIRE_R = 44;    // raw pointer this close to a button = lock
+    const RELEASE_R = 60;    // raw pointer this far from the lock = free
+    const SWITCH_MARGIN = 12; // a neighbor must be this much closer to steal the lock
     const center = (el) => {
       const r = el.getBoundingClientRect();
       return r.width ? { x: r.left + r.width / 2, y: r.top + r.height / 2 } : null;
     };
+    const pinching = engine.hands.some((h) => h.present && h.pinching);
+
+    // nearest visible button to the RAW (unmagnetized) pointer
+    let nearest = null, nd = Infinity;
+    for (const el of document.querySelectorAll('[data-gesture="button"]')) {
+      if (el.closest(".hidden")) continue; // skip buttons in hidden overlays
+      const c = center(el);
+      if (!c) continue;
+      const d = Math.hypot(hp.x - c.x, hp.y - c.y);
+      if (d < nd) { nd = d; nearest = el; }
+    }
+
     if (magnetEl) {
       const c = center(magnetEl);
-      if (!c || Math.hypot(hp.x - c.x, hp.y - c.y) > EXIT_R) magnetEl = null;
-    }
-    const pinching = engine.hands.some((h) => h.present && h.pinching);
-    if (!magnetEl && !pinching) { // keep an existing lock while pinching, never acquire one
-      let best = null, bd = ENTER_R;
-      for (const el of document.querySelectorAll('[data-gesture="button"]')) {
-        if (el.closest(".hidden")) continue; // skip buttons in hidden overlays
-        const c = center(el);
-        if (!c) continue;
-        const d = Math.hypot(hp.x - c.x, hp.y - c.y);
-        if (d < bd) { bd = d; best = el; }
+      const dl = c ? Math.hypot(hp.x - c.x, hp.y - c.y) : Infinity;
+      if (dl > RELEASE_R) {
+        magnetEl = null;
+      } else if (!pinching && nearest && nearest !== magnetEl &&
+                 nd <= ACQUIRE_R && nd < dl - SWITCH_MARGIN) {
+        magnetEl = nearest; // hop straight to the clearly-closer neighbor
       }
-      magnetEl = best;
     }
+    if (!magnetEl && !pinching && nearest && nd <= ACQUIRE_R) magnetEl = nearest;
+
     if (magnetEl) {
       const c = center(magnetEl);
       if (c) return { present: true, x: c.x, y: c.y };
