@@ -58,7 +58,7 @@ and shuts everything down together on Ctrl-C.
 
 Click the mic (bottom right), speak (English or Italian), click again to stop.
 The transcription is sent to HOLO, which can call tools:
-`open_file`, `read_file`, `write_file`, `replace_text`, `delete_file`.
+`open_file`, `read_file`, `write_file`, `replace_selected_text`, `delete_file`.
 Text selected by pinch-dragging inside a text window rides along with the
 next voice message ("fix this sentence" just works). If HOLO modifies a file
 that is open on screen, the window refreshes live. HOLO always knows which

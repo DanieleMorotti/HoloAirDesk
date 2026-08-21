@@ -105,8 +105,8 @@ def _unescape(text: str) -> str:
 
 
 @function_tool
-def replace_selected(ctx: RunContextWrapper, new_text: str) -> str:
-    """Replace the text the user has currently selected on screen with new_text. Always prefer this when the user asks to change, fix or rewrite their selected text — the old text is filled in automatically.
+def replace_selected_text(ctx: RunContextWrapper, new_text: str) -> str:
+    """Replace the text the user has currently selected on screen with new_text. Use this whenever the user asks to change, correct, fix or rewrite their selected text — the old text is filled in automatically.
 
     Args:
         new_text: The replacement text for the selection.
@@ -118,23 +118,7 @@ def replace_selected(ctx: RunContextWrapper, new_text: str) -> str:
         replace_in_text_file(sel["file"], sel["text"], _unescape(new_text))
     except (ValueError, FileNotFoundError) as e:
         return f"Error: {e}"
-    return f"{sel['file']} updated."
-
-
-@function_tool
-def replace_text(name: str, old_text: str, new_text: str) -> str:
-    """Replace an exact text fragment inside a TEXT file. Prefer this over write_file when editing only part of a file.
-
-    Args:
-        name: Exact file name from the library.
-        old_text: The exact existing fragment to replace (copy it verbatim, including line breaks).
-        new_text: The replacement text.
-    """
-    try:
-        replace_in_text_file(name, _unescape(old_text), _unescape(new_text))
-    except (ValueError, FileNotFoundError) as e:
-        return f"Error: {e}"
-    return f"{name} updated."
+    return f"{sel['file']} updated with the new text."
 
 
 @function_tool(name_override="delete_file")
@@ -151,15 +135,13 @@ def delete_file_tool(name: str) -> str:
     return f"{name} deleted."
 
 
-TOOLS = [open_file, read_file, write_file, replace_selected, replace_text, delete_file_tool]
+TOOLS = [open_file, read_file, write_file, delete_file_tool]
 
 # tool name -> UI event sent to the browser on success
 UI_EVENTS = {
     "open_file": lambda a: {"type": "open_file", "name": a.get("name", "")},
     "write_file": lambda a: {"type": "file_changed", "name": a.get("name", ""),
                              "kind": file_kind(a.get("name", ""))},
-    "replace_text": lambda a: {"type": "file_changed", "name": a.get("name", ""),
-                               "kind": file_kind(a.get("name", ""))},
     "delete_file": lambda a: {"type": "file_deleted", "name": a.get("name", "")},
 }
 
@@ -167,41 +149,51 @@ UI_EVENTS = {
 def build_agent(open_files: list, selection: dict = None) -> Agent:
     lib = ", ".join(f"{f['name']} ({f['kind']})" for f in list_files()) or "(empty)"
     opened = ", ".join(open_files) if open_files else "(none)"
-    sel_note = ""
+
+    lines = [
+        "You are HOLO, the voice assistant of a holographic desktop. "
+        "The user talks by voice; replies are shown in a small chat panel.",
+        f"Library files: {lib}",
+        f"Files currently open on screen: {opened}",
+    ]
     if selection:
-        sel_note = (
-            f"\nACTIVE SELECTION: the user has selected text in {selection['file']}. "
-            "If they ask to change/fix/rewrite it, call replace_selected(new_text) directly — "
-            "do NOT read the file and do NOT use replace_text for the selection."
+        lines.append(
+            f"Selected text by user: the user has an active selection in {selection['file']} "
+            "(quoted at the top of their message)."
         )
+    lines += [
+        "Rules:",
+        "- Be extremely concise: one short sentence when possible, no filler, no markdown.",
+        "- Always answer in the user's language.",
+        "- Call tools only when needed, then answer immediately.",
+        "- open_file shows ANY file type (text, image, audio) on the user's screen. "
+        "If the user asks to open/show/display a file, open_file alone is enough.",
+        "- read_file and write_file work ONLY on text files. NEVER call read_file or "
+        "write_file on an image or audio file: you cannot see or hear their content, "
+        "and opening them already shows them to the user.",
+        "- delete_file works on any file type.",
+    ]
+    if selection:
+        lines.append(
+            "- When the user asks to change, correct, fix or rewrite their selected text, "
+            "call replace_selected_text(new_text) directly — do NOT read the file first, "
+            "the selected text is replaced automatically."
+        )
+    lines += [
+        "- To edit a text file when nothing is selected: first read_file, then write_file "
+        "with the complete updated content.",
+        "- Never invent files that are not in the library.",
+        "- Never start your reply with the '[' character (it breaks the display); "
+        "begin with a word instead.",
+    ]
+
     return Agent(
         name="HOLO",
         model=llm,
         model_settings=ModelSettings(temperature=LLM_TEMPERATURE),
-        tools=TOOLS,
-        instructions=(
-            "You are HOLO, the voice assistant of a holographic desktop. "
-            "The user talks by voice; replies are shown in a small chat panel.\n"
-            f"Library files: {lib}\n"
-            f"Files currently open on screen: {opened}{sel_note}\n"
-            "Rules:\n"
-            "- Be extremely concise: one short sentence when possible, no filler, no markdown.\n"
-            "- Always answer in the user's language.\n"
-            "- Call tools only when needed, then answer immediately.\n"
-            "- open_file shows ANY file type (text, image, audio) on the user's screen. "
-            "If the user asks to open/show/display a file, open_file alone is enough.\n"
-            "- read_file and write_file work ONLY on text files. NEVER call read_file or "
-            "write_file on an image or audio file: you cannot see or hear their content, "
-            "and opening them already shows them to the user.\n"
-            "- delete_file works on any file type.\n"
-            "- When the user message contains a selected text block ([User selected this text "
-            "from ...]) and asks to change/fix/rewrite it, call replace_selected(new_text) "
-            "directly — do NOT read the file first, the old text is filled in automatically.\n"
-            "- For other partial edits use replace_text with the exact existing fragment.\n"
-            "- Never invent files that are not in the library.\n"
-            "- Never start your reply with the '[' character (it breaks the display); "
-            "begin with a word instead."
-        ),
+        # the selection tool is only offered while a selection actually exists
+        tools=TOOLS + ([replace_selected_text] if selection else []),
+        instructions="\n".join(lines),
     )
 
 
@@ -251,7 +243,7 @@ async def agent_events(req: ChatRequest) -> AsyncIterator[str]:
                     output = str(item.output or "")
                     if output.startswith("Error"):
                         pass
-                    elif name == "replace_selected" and selection:
+                    elif name == "replace_selected_text" and selection:
                         yield sse({"type": "file_changed", "name": selection["file"],
                                    "kind": file_kind(selection["file"])})
                     elif name in UI_EVENTS:

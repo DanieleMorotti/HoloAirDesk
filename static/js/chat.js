@@ -37,8 +37,7 @@ const TOOL_LABELS = {
   open_file: "OPENING",
   read_file: "READING",
   write_file: "WRITING",
-  replace_text: "EDITING",
-  replace_selected: "EDITING SELECTION",
+  replace_selected_text: "EDITING SELECTION",
   delete_file: "DELETING",
 };
 
