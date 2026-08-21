@@ -1,4 +1,6 @@
 """File library: safe access helpers + REST endpoints used by the UI."""
+import re
+import threading
 from pathlib import Path
 
 from fastapi import APIRouter, HTTPException
@@ -7,6 +9,10 @@ from fastapi.responses import FileResponse
 from .config import LIBRARY_DIR, READ_FILE_CHAR_LIMIT, file_kind
 
 router = APIRouter(prefix="/api/files")
+
+# the agent SDK may run several tool calls concurrently: serialize mutations
+# so read-modify-write edits cannot clobber each other
+_WRITE_LOCK = threading.Lock()
 
 
 def safe_path(name: str) -> Path:
@@ -49,7 +55,8 @@ def write_text_file(name: str, content: str) -> None:
     path = safe_path(name)
     if file_kind(name) != "text":
         raise ValueError(f"only text files can be written ({name})")
-    path.write_text(content, encoding="utf-8")
+    with _WRITE_LOCK:
+        path.write_text(content, encoding="utf-8")
 
 
 def replace_in_text_file(name: str, old_text: str, new_text: str) -> None:
@@ -58,17 +65,27 @@ def replace_in_text_file(name: str, old_text: str, new_text: str) -> None:
         raise FileNotFoundError(name)
     if file_kind(name) != "text":
         raise ValueError(f"only text files can be edited ({name})")
-    text = path.read_text(encoding="utf-8", errors="replace")
-    if old_text not in text:
-        raise ValueError(f"the given text was not found in {name}")
-    path.write_text(text.replace(old_text, new_text, 1), encoding="utf-8")
+    with _WRITE_LOCK:
+        text = path.read_text(encoding="utf-8", errors="replace")
+        if old_text in text:
+            new_content = text.replace(old_text, new_text, 1)
+        else:
+            # models often mangle whitespace when quoting a fragment:
+            # retry with any whitespace runs treated as equivalent
+            tokens = old_text.split()
+            m = re.search(r"[ \t\n]+".join(re.escape(t) for t in tokens), text) if tokens else None
+            if not m:
+                raise ValueError(f"the given text was not found in {name}")
+            new_content = text[: m.start()] + new_text + text[m.end():]
+        path.write_text(new_content, encoding="utf-8")
 
 
 def delete_file(name: str) -> None:
     path = safe_path(name)
-    if not path.exists():
-        raise FileNotFoundError(name)
-    path.unlink()
+    with _WRITE_LOCK:
+        if not path.exists():
+            raise FileNotFoundError(name)
+        path.unlink()
 
 
 @router.get("")

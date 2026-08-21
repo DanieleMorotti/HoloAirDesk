@@ -38,6 +38,7 @@ const TOOL_LABELS = {
   read_file: "READING",
   write_file: "WRITING",
   replace_text: "EDITING",
+  replace_selected: "EDITING SELECTION",
   delete_file: "DELETING",
 };
 
