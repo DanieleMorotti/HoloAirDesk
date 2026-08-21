@@ -68,7 +68,8 @@ body {
 
 /* ---------- hand cursors ---------- */
 .cursor {
-  position: fixed; z-index: 2000; left: 0; top: 0;
+  /* above every overlay (help 4000, boot 5000) so hands can drive them too */
+  position: fixed; z-index: 9000; left: 0; top: 0;
   width: 46px; height: 46px; margin: -23px 0 0 -23px;
   pointer-events: none; display: none;
   will-change: transform;
@@ -228,19 +229,25 @@ button.g-hover, .dock-btn.g-hover, .file-card.g-hover { outline: 1px solid var(-
   clip-path: polygon(12px 0, 100% 0, 100% 100%, 0 100%, 0 12px);
   box-shadow: 0 0 20px rgba(78,225,255,.1);
 }
-#chat.empty { display: none; }
+#chat.min #chat-messages { display: none; }
+#chat.min #chat-min { transform: rotate(180deg); }
 #chat-header {
   display: flex; justify-content: space-between; align-items: center;
-  padding: 7px 12px;
+  padding: 7px 8px 7px 12px;
   font-family: var(--font-mono); font-size: 11px; letter-spacing: 2px;
   color: var(--cyan);
   border-bottom: 1px solid rgba(78,225,255,.25);
 }
-#chat-clear {
+.ch-actions { display: flex; gap: 2px; }
+#chat-clear, #chat-min {
   background: none; border: none; color: var(--cyan); opacity: .6;
-  font-size: 14px; cursor: pointer;
+  font-size: 14px; cursor: pointer; width: 26px; height: 22px; line-height: 1;
 }
-#chat-clear:hover { opacity: 1; }
+#chat-clear:hover, #chat-min:hover, #chat-clear.g-hover, #chat-min.g-hover { opacity: 1; }
+.chat-placeholder {
+  font-family: var(--font-mono); font-size: 10.5px; letter-spacing: 1.5px;
+  color: var(--cyan); opacity: .38; text-align: center; padding: 12px 0;
+}
 #chat-messages {
   overflow-y: auto; padding: 10px 12px;
   display: flex; flex-direction: column; gap: 8px;

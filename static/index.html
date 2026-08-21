@@ -45,7 +45,12 @@
 <!-- bottom-right: chat + dock + mic -->
 <aside id="assistant">
   <div id="chat">
-    <div id="chat-header"><span>◈ HOLO — VOICE LINK</span><button id="chat-clear" data-gesture="button" title="Clear conversation">⟲</button></div>
+    <div id="chat-header"><span>◈ HOLO — VOICE LINK</span>
+      <div class="ch-actions">
+        <button id="chat-clear" data-gesture="button" title="Clear conversation">⟲</button>
+        <button id="chat-min" data-gesture="button" title="Minimize">▾</button>
+      </div>
+    </div>
     <div id="chat-messages"></div>
   </div>
   <div id="controls">

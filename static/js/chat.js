@@ -6,13 +6,21 @@ import { toast } from "/js/hud.js";
 const sessionId = crypto.randomUUID ? crypto.randomUUID() : String(Math.random());
 let panel, messages, busy = false;
 
+function placeholder() {
+  const p = document.createElement("div");
+  p.className = "chat-placeholder";
+  p.textContent = "VOICE LINK READY — TAP THE MIC AND SPEAK";
+  messages.appendChild(p);
+}
+
 function addMsg(cls, text = "") {
+  messages.querySelector(".chat-placeholder")?.remove();
+  panel.classList.remove("min"); // new activity re-expands a minimized chat
   const div = document.createElement("div");
   div.className = `msg ${cls}`;
   div.textContent = text;
   messages.appendChild(div);
   messages.scrollTop = messages.scrollHeight;
-  panel.classList.remove("empty");
   return div;
 }
 
@@ -109,10 +117,13 @@ async function handleEvent(ev, appendDelta) {
 export function init() {
   panel = document.getElementById("chat");
   messages = document.getElementById("chat-messages");
-  panel.classList.add("empty");
+  placeholder();
+  document.getElementById("chat-min").addEventListener("click", () => {
+    panel.classList.toggle("min");
+  });
   document.getElementById("chat-clear").addEventListener("click", async () => {
     messages.innerHTML = "";
-    panel.classList.add("empty");
+    placeholder();
     await fetch("/api/chat/reset", {
       method: "POST",
       headers: { "Content-Type": "application/json" },

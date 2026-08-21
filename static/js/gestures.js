@@ -11,13 +11,14 @@ const PINCH_CONFIRM = 2;   // frames of confirmation before pinch-down fires
 const CLICK_MS = 320;      // max pinch duration for a "click"
 const CLICK_MOVE = 26;     // max cursor travel (px) for a "click"
 const LOST_GRACE_MS = 180; // keep a briefly-lost hand alive this long
-const AMP_X = 1.45;        // camera-to-screen movement amplification
-const AMP_Y = 1.9;         // steeper on Y with a raised pivot: the screen bottom is
-const PIVOT_Y = 0.44;      // reached while the hand is still well inside the frame,
-                           // where tracking stays accurate
-const CLAP_NEAR = 1.15;    // palms closer than this (in hand-sizes) = contact
-const CLAP_FAR = 2.3;      // ...coming from at least this far apart
-const CLAP_WINDOW_MS = 420;
+const AMP_X = 1.35;        // camera-to-screen movement amplification
+const AMP_Y = 1.65;        // slightly steeper on Y with a raised pivot: the screen
+const PIVOT_Y = 0.46;      // bottom is reached before the hand leaves the frame
+const CLAP_NEAR = 1.25;    // palms closer than this (in hand-sizes) = contact
+const CLAP_FAR = 1.9;      // ...coming from at least this far apart
+const CLAP_LOSS_NEAR = 1.7;// tracking often drops a hand right at contact:
+const CLAP_LOSS_MS = 160;  // treat approach + hand-loss as a clap too
+const CLAP_WINDOW_MS = 600;
 const CLAP_COOLDOWN_MS = 1400;
 
 const dist = (a, b) => Math.hypot(a.x - b.x, a.y - b.y);
@@ -124,6 +125,21 @@ export class GestureEngine {
   }
 
   dropHand(hand, t) {
+    // clapping hands often merge into one detection right at contact, so the
+    // "palms touching" frame may never arrive: a fast approach immediately
+    // followed by losing a hand near the other one also counts as a clap
+    const other = this.hands[1 - hand.slot];
+    if (other.present && !hand.pinching && !other.pinching &&
+        t - this.lastClap > CLAP_COOLDOWN_MS && this.palmGap.length) {
+      const latest = this.palmGap[this.palmGap.length - 1];
+      const wasFar = this.palmGap.some((s) => s.gap > CLAP_FAR);
+      if (wasFar && latest.gap < CLAP_LOSS_NEAR && t - latest.t < CLAP_LOSS_MS) {
+        this.lastClap = t;
+        this.palmGap.length = 0;
+        this.h.onClap?.((hand.x + other.x) / 2, (hand.y + other.y) / 2);
+      }
+    }
+
     hand.present = false;
     hand.el.style.display = "none";
     if (hand.pinching) {
@@ -132,7 +148,6 @@ export class GestureEngine {
       hand.el.classList.remove("pinch");
       this.h.onUp?.(hand.slot, hand.x, hand.y, false);
     }
-    void t;
   }
 
   detectClap(t) {

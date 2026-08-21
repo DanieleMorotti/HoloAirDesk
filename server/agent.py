@@ -50,6 +50,10 @@ def open_file(name: str) -> str:
             return f"Error: {name} not found in library."
     except ValueError as e:
         return f"Error: {e}"
+    kind = file_kind(name)
+    if kind in ("image", "audio"):
+        return (f"{name} ({kind}) is now open and visible on the user's screen. "
+                "Binary content cannot be read — no further action is needed.")
     return f"{name} is now open on screen."
 
 
@@ -126,9 +130,12 @@ def build_agent(open_files: list) -> Agent:
             "- Be extremely concise: one short sentence when possible, no filler, no markdown.\n"
             "- Always answer in the user's language.\n"
             "- Call tools only when needed, then answer immediately.\n"
-            "- If the user asks to open/show/display a file, call open_file (it shows the file "
-            "on screen); read_file only returns the content to you.\n"
-            "- Only text files can be read or written; images and audio can only be opened or deleted.\n"
+            "- open_file shows ANY file type (text, image, audio) on the user's screen. "
+            "If the user asks to open/show/display a file, open_file alone is enough.\n"
+            "- read_file and write_file work ONLY on text files. NEVER call read_file or "
+            "write_file on an image or audio file: you cannot see or hear their content, "
+            "and opening them already shows them to the user.\n"
+            "- delete_file works on any file type.\n"
             "- Never invent files that are not in the library."
         ),
     )
