@@ -9,6 +9,11 @@ cuts your silhouette out of the frame, rendered to a canvas with a cyan
 scanline/glow shader on the dark grid. The room disappears, *you* become
 part of the HUD.
 
+## K. [~] Head pointer + hand pinch hybrid (Face Landmarker) — wow 4/5, effort 3/5
+Head orientation (nose tip relative to the eye line, distance-normalized)
+steers the single cursor; the hands only pinch to click/drag. Auto
+neutral-pose calibration on enable, dock HEAD button toggles it.
+
 ## B. [ ] Head parallax depth (Face Landmarker) — wow 4/5, effort 2/5
 Track the head position and shift windows a few px against head movement,
 scaled by a per-window depth factor. Instantly makes the desktop feel like

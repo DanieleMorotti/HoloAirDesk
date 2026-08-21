@@ -92,6 +92,12 @@ body {
 #cursor-1 .cursor-dot { background: #b08cff; box-shadow: 0 0 10px #b08cff; }
 #cursor-1.pinch::before { border-color: var(--amber); }
 
+/* head-pointer mode: single green-tinted cursor + lit dock button */
+body.headmode #cursor-0::before { border-color: #7dffb0; box-shadow: 0 0 14px rgba(125,255,176,.45); }
+body.headmode #cursor-0 .cursor-dot { background: #7dffb0; box-shadow: 0 0 10px #7dffb0; }
+body.headmode #cursor-0.pinch::before { border-color: var(--amber); }
+body.headmode #dock-head { border-color: #7dffb0; color: #7dffb0; background: rgba(125,255,176,.08); }
+
 @keyframes ripple { from { transform: scale(.4); opacity: .9; } to { transform: scale(2.2); opacity: 0; } }
 .cursor .click-ripple {
   position: absolute; inset: 0; border-radius: 50%;

@@ -5,6 +5,7 @@ import * as interactions from "/js/interactions.js";
 import * as windows from "/js/windows.js";
 import * as chat from "/js/chat.js";
 import * as selection from "/js/selection.js";
+import * as head from "/js/headpointer.js";
 import * as mic from "/js/mic.js";
 import * as hud from "/js/hud.js";
 import { sfx } from "/js/sfx.js";
@@ -67,7 +68,19 @@ async function boot() {
     onClap: interactions.onClap,
     onHands: hud.tickFrame,
   });
-  startTracking(landmarker, video, (result, t) => engine.processFrame(result, t));
+  startTracking(landmarker, video, (result, t) => {
+    if (head.isActive()) engine.headPoint = head.update(video, t);
+    engine.processFrame(result, t);
+  });
+
+  // head-pointer mode (experimental): head steers the cursor, hands pinch
+  head.init().catch((e) => console.warn("head pointer unavailable:", e));
+  document.getElementById("dock-head").addEventListener("click", () => {
+    if (!head.isReady()) { hud.toast("HEAD POINTER STILL LOADING"); return; }
+    const on = head.toggle();
+    engine.setHeadMode(on);
+    hud.toast(on ? "HEAD POINTER ON — LOOK AT THE CENTER, HOLD STILL" : "HAND POINTERS ON");
+  });
 
   hud.bootMessage("all systems nominal");
   setTimeout(() => {

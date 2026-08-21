@@ -46,6 +46,33 @@ export class GestureEngine {
     this.hands = [new HandState(0), new HandState(1)];
     this.palmGap = []; // recent {t, gap} samples for clap detection
     this.lastClap = 0;
+    // head-pointer mode: the head drives the (single) cursor, one hand pinches
+    this.headMode = false;
+    this.headPoint = { present: false, x: 0, y: 0 };
+  }
+
+  setHeadMode(on) {
+    this.headMode = on;
+    // release anything held so no drag survives the mode switch
+    for (const hand of this.hands) {
+      if (hand.pinching) {
+        hand.pinching = false;
+        hand.pinchFrames = 0;
+        hand.el.classList.remove("pinch");
+        this.h.onUp?.(hand.slot, hand.x, hand.y, false);
+      }
+      hand.el.style.display = "none";
+      hand.present = false;
+    }
+  }
+
+  // in head mode a single hand supplies the pinch: prefer the one already
+  // pinching (mid-drag), otherwise the first visible one
+  drivingSlot() {
+    const pinching = this.hands.find((h) => h.present && h.pinching);
+    if (pinching) return pinching.slot;
+    const present = this.hands.find((h) => h.present);
+    return present ? present.slot : 0;
   }
 
   processFrame(result, t) {
@@ -66,6 +93,17 @@ export class GestureEngine {
       if (!seen[hand.slot] && hand.present && t - hand.lastSeen > LOST_GRACE_MS) {
         this.dropHand(hand, t);
       }
+    }
+
+    // head mode: the cursor follows the head even with no hands in frame
+    // (hover works; a hand is only needed to pinch)
+    if (this.headMode && this.headPoint.present && !this.hands.some((h) => h.present)) {
+      const h0 = this.hands[0];
+      h0.x = this.headPoint.x;
+      h0.y = this.headPoint.y;
+      h0.el.style.display = "block";
+      h0.el.style.transform = `translate(${h0.x}px, ${h0.y}px)`;
+      this.h.onMove?.(0, h0.x, h0.y, false);
     }
 
     this.detectClap(t);
@@ -95,9 +133,27 @@ export class GestureEngine {
       hand.el.style.display = "block";
     }
     const prevX = hand.x, prevY = hand.y;
-    hand.x = hand.fx.filter(px, t);
-    hand.y = hand.fy.filter(py, t);
-    hand.el.style.transform = `translate(${hand.x}px, ${hand.y}px)`;
+
+    // head mode: the driving hand's cursor is the head pointer (already
+    // smoothed); the other hand stays invisible and inert (clap still works)
+    const driving = !this.headMode || hand.slot === this.drivingSlot();
+    if (this.headMode) {
+      if (!driving || !this.headPoint.present) {
+        hand.el.style.display = "none";
+        if (!driving) return;
+        // face lost: freeze the cursor at its last position
+        hand.el.style.display = "block";
+      }
+      if (this.headPoint.present) {
+        hand.x = this.headPoint.x;
+        hand.y = this.headPoint.y;
+      }
+      hand.el.style.transform = `translate(${hand.x}px, ${hand.y}px)`;
+    } else {
+      hand.x = hand.fx.filter(px, t);
+      hand.y = hand.fy.filter(py, t);
+      hand.el.style.transform = `translate(${hand.x}px, ${hand.y}px)`;
+    }
 
     // pinch with hysteresis + confirmation frames
     const pinchAmt = dist(lm[4], lm[8]) / hand.size;
