@@ -4,6 +4,7 @@ import { GestureEngine } from "/js/gestures.js";
 import * as interactions from "/js/interactions.js";
 import * as windows from "/js/windows.js";
 import * as chat from "/js/chat.js";
+import * as selection from "/js/selection.js";
 import * as mic from "/js/mic.js";
 import * as hud from "/js/hud.js";
 import { sfx } from "/js/sfx.js";
@@ -23,6 +24,7 @@ async function boot() {
   hud.initHud();
   windows.init();
   chat.init();
+  selection.init();
   mic.init();
   pollHealth();
 

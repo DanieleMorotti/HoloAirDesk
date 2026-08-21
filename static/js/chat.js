@@ -1,5 +1,6 @@
 // Chat panel + SSE client for the HOLO agent.
 import * as windows from "/js/windows.js";
+import * as selection from "/js/selection.js";
 import { sfx } from "/js/sfx.js";
 import { toast } from "/js/hud.js";
 
@@ -36,6 +37,7 @@ const TOOL_LABELS = {
   open_file: "OPENING",
   read_file: "READING",
   write_file: "WRITING",
+  replace_text: "EDITING",
   delete_file: "DELETING",
 };
 
@@ -44,6 +46,15 @@ export function isBusy() { return busy; }
 export async function send(text) {
   if (busy || !text.trim()) return;
   busy = true;
+
+  // a pinch-selected text fragment rides along as context for the agent
+  const sel = selection.consume();
+  let agentMessage = text;
+  if (sel) {
+    agentMessage = `[User selected this text from ${sel.file}]:\n"""\n${sel.text}\n"""\n\n${text}`;
+    const att = addMsg("user selection");
+    att.textContent = `✂ ${sel.file} — ${sel.text.length > 120 ? sel.text.slice(0, 120) + "…" : sel.text}`;
+  }
   addMsg("user", text);
   let holoMsg = null, holoText = "";
   const ensureHolo = () => holoMsg || (holoMsg = addMsg("holo streaming"));
@@ -57,7 +68,7 @@ export async function send(text) {
     const resp = await fetch("/api/chat", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ session_id: sessionId, message: text, open_files: windows.getOpenFiles() }),
+      body: JSON.stringify({ session_id: sessionId, message: agentMessage, open_files: windows.getOpenFiles() }),
     });
     if (!resp.ok || !resp.body) throw new Error(`HTTP ${resp.status}`);
 

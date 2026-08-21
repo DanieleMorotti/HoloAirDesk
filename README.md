@@ -50,7 +50,7 @@ and shuts everything down together on Ctrl-C.
 | Point (index + thumb) | Move the cursor — both hands work |
 | Quick pinch | Click (buttons, dock, file cards, window ✕) |
 | Hold pinch on a title bar | Grab and drag the window (images/audio: anywhere) |
-| Pinch inside a text file | Scroll it — the content follows your hand |
+| Pinch inside a text file | Slide vertically to scroll, horizontally to select text |
 | Both hands pinch a window | Resize by pulling apart / together |
 | Clap | Close every open window |
 
@@ -58,7 +58,9 @@ and shuts everything down together on Ctrl-C.
 
 Click the mic (bottom right), speak (English or Italian), click again to stop.
 The transcription is sent to HOLO, which can call tools:
-`open_file`, `read_file`, `write_file`, `delete_file`. If it modifies a file
+`open_file`, `read_file`, `write_file`, `replace_text`, `delete_file`.
+Text selected by pinch-dragging inside a text window rides along with the
+next voice message ("fix this sentence" just works). If HOLO modifies a file
 that is open on screen, the window refreshes live. HOLO always knows which
 files are currently open, and remembers the last 10 chat messages (tool
 traffic and thinking tracks are not kept in the context).

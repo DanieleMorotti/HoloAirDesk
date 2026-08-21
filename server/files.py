@@ -52,6 +52,18 @@ def write_text_file(name: str, content: str) -> None:
     path.write_text(content, encoding="utf-8")
 
 
+def replace_in_text_file(name: str, old_text: str, new_text: str) -> None:
+    path = safe_path(name)
+    if not path.exists():
+        raise FileNotFoundError(name)
+    if file_kind(name) != "text":
+        raise ValueError(f"only text files can be edited ({name})")
+    text = path.read_text(encoding="utf-8", errors="replace")
+    if old_text not in text:
+        raise ValueError(f"the given text was not found in {name}")
+    path.write_text(text.replace(old_text, new_text, 1), encoding="utf-8")
+
+
 def delete_file(name: str) -> None:
     path = safe_path(name)
     if not path.exists():

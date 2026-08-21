@@ -22,7 +22,14 @@ from openai import AsyncOpenAI
 from pydantic import BaseModel
 
 from .config import LLAMA_URL, LLM_TEMPERATURE, file_kind
-from .files import delete_file, list_files, read_text_file, safe_path, write_text_file
+from .files import (
+    delete_file,
+    list_files,
+    read_text_file,
+    replace_in_text_file,
+    safe_path,
+    write_text_file,
+)
 
 router = APIRouter()
 set_tracing_disabled(True)  # local-only, no OpenAI backend
@@ -78,14 +85,34 @@ def write_file(name: str, content: str) -> str:
         name: File name, e.g. notes.txt.
         content: Full new content of the file.
     """
-    # small models sometimes double-escape newlines in tool arguments
-    if "\\n" in content and "\n" not in content:
-        content = content.replace("\\r\\n", "\n").replace("\\n", "\n").replace("\\t", "\t")
     try:
-        write_text_file(name, content)
+        write_text_file(name, _unescape(content))
     except ValueError as e:
         return f"Error: {e}"
     return f"{name} saved."
+
+
+def _unescape(text: str) -> str:
+    # small models sometimes double-escape newlines in tool arguments
+    if "\\n" in text and "\n" not in text:
+        text = text.replace("\\r\\n", "\n").replace("\\n", "\n").replace("\\t", "\t")
+    return text
+
+
+@function_tool
+def replace_text(name: str, old_text: str, new_text: str) -> str:
+    """Replace an exact text fragment inside a TEXT file. Prefer this over write_file when editing only part of a file.
+
+    Args:
+        name: Exact file name from the library.
+        old_text: The exact existing fragment to replace (copy it verbatim, including line breaks).
+        new_text: The replacement text.
+    """
+    try:
+        replace_in_text_file(name, _unescape(old_text), _unescape(new_text))
+    except (ValueError, FileNotFoundError) as e:
+        return f"Error: {e}"
+    return f"{name} updated."
 
 
 @function_tool(name_override="delete_file")
@@ -102,13 +129,15 @@ def delete_file_tool(name: str) -> str:
     return f"{name} deleted."
 
 
-TOOLS = [open_file, read_file, write_file, delete_file_tool]
+TOOLS = [open_file, read_file, write_file, replace_text, delete_file_tool]
 
 # tool name -> UI event sent to the browser on success
 UI_EVENTS = {
     "open_file": lambda a: {"type": "open_file", "name": a.get("name", "")},
     "write_file": lambda a: {"type": "file_changed", "name": a.get("name", ""),
                              "kind": file_kind(a.get("name", ""))},
+    "replace_text": lambda a: {"type": "file_changed", "name": a.get("name", ""),
+                               "kind": file_kind(a.get("name", ""))},
     "delete_file": lambda a: {"type": "file_deleted", "name": a.get("name", "")},
 }
 
@@ -136,7 +165,12 @@ def build_agent(open_files: list) -> Agent:
             "write_file on an image or audio file: you cannot see or hear their content, "
             "and opening them already shows them to the user.\n"
             "- delete_file works on any file type.\n"
-            "- Never invent files that are not in the library."
+            "- To edit part of a text file use replace_text with the exact existing fragment. "
+            "When the user message contains a selected text block ([User selected this text "
+            "from ...]), that selection is the fragment they want you to act on.\n"
+            "- Never invent files that are not in the library.\n"
+            "- Never start your reply with the '[' character (it breaks the display); "
+            "begin with a word instead."
         ),
     )
 

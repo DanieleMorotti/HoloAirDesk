@@ -1,12 +1,14 @@
 // Maps gesture pointer events onto the UI: buttons, window drag,
 // two-hand resize, scroll thumbs, clap-to-clear.
 import * as windows from "/js/windows.js";
+import * as selection from "/js/selection.js";
 import { sfx } from "/js/sfx.js";
 
 const hands = [freshHand(), freshHand()];
 
 function freshHand() {
-  return { mode: null, target: null, winEl: null, offX: 0, offY: 0, startY: 0, hover: null };
+  return { mode: null, target: null, winEl: null, textEl: null,
+           offX: 0, offY: 0, startX: 0, startY: 0, hover: null };
 }
 
 function hitAt(x, y) {
@@ -55,11 +57,13 @@ export function onDown(slot, x, y) {
       startResize(hand, partner, hit.win);
       return;
     }
-    // pinch inside the text content scrolls it (touch-style);
-    // the window itself is moved by its title bar / borders
+    // pinch inside the text content: direction decides — mostly vertical
+    // drags scroll it, mostly horizontal drags select text for HOLO
     if (hit.text) {
-      hand.mode = "scroll";
+      hand.mode = "textpend";
       hand.winEl = hit.win;
+      hand.textEl = hit.text;
+      hand.startX = x;
       hand.startY = y;
       return;
     }
@@ -100,6 +104,20 @@ export function onMove(slot, x, y, pinching) {
       const d = Math.hypot(hand.x - other.x, hand.y - other.y);
       windows.setScale(hand.winEl, hand.resize.startScale * (d / hand.resize.startDist));
     }
+  } else if (hand.mode === "textpend") {
+    const dx = x - hand.startX, dy = y - hand.startY;
+    if (Math.hypot(dx, dy) > 16) {
+      if (Math.abs(dx) > Math.abs(dy)) {
+        hand.mode = "select";
+        selection.begin(hand.textEl, hand.startX, hand.startY);
+        selection.extend(x, y);
+      } else {
+        hand.mode = "scroll";
+        hand.startY = y;
+      }
+    }
+  } else if (hand.mode === "select") {
+    selection.extend(x, y);
   } else if (hand.mode === "scroll" && hand.winEl) {
     // content follows the hand, compensating for the window's scale
     const dy = (y - hand.startY) / windows.getScale(hand.winEl);
@@ -117,7 +135,13 @@ export function onUp(slot, x, y, wasClick) {
       sfx.click();
       hand.target.click();
     }
-  } else if (hand.mode === "drag" || hand.mode === "resize") {
+  } else if (hand.mode === "select") {
+    selection.finish();
+  } else if (wasClick) {
+    // a plain click anywhere that is not a button discards the selection
+    selection.clear();
+  }
+  if (hand.mode === "drag" || hand.mode === "resize") {
     hand.winEl?.classList.remove("grabbed");
     // if we were resizing, the other hand falls back to dragging
     const other = hands[1 - slot];
