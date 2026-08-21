@@ -3,10 +3,9 @@
 // (face-oval points near the ears), normalized by face width — so it reacts
 // to head rotation but not to blinking, expressions, or distance changes.
 //
-// Calibration: on enable, a LOOK HERE target appears at the screen center;
-// after a short grace period the neutral pose is captured there. (Capturing
-// immediately would store the head turned toward the dock button that was
-// just clicked, biasing the whole mapping.)
+// Calibration is an explicit step: a LOOK HERE ring appears at the screen
+// center, samples accumulate for a few seconds, and the user confirms with
+// the SET CENTER button (hands stay active during calibration to click it).
 import { FilesetResolver, FaceLandmarker } from "/vendor/mediapipe/vision_bundle.mjs";
 import { OneEuro } from "/js/tracking.js";
 
@@ -14,10 +13,10 @@ import { OneEuro } from "/js/tracking.js";
 const GAIN_X = 3.8;      // screen travel per unit of normalized nose offset
 const GAIN_Y = 4.6;
 const EXPO = 1.35;       // >1 compresses small deviations for precision
-const DEAD_PX = 2.5;     // output hysteresis: moves smaller than this freeze
+const DEAD_PX = 4;       // output hysteresis: moves smaller than this freeze
 const MAX_SPEED = 2400;  // px/s: the cursor glides, it never jumps
-const GRACE_MS = 900;    // time to move the eyes to the center target
-const CALIB_FRAMES = 35; // ~1.2s of neutral pose, median-averaged
+const MIN_SAMPLES = 75;  // ~2.5s of steady pose before SET CENTER unlocks
+const MAX_SAMPLES = 240; // rolling window while the user waits
 // ---------------------------------------------------------------------------
 
 // rigid landmarks (blink/expression-proof): nose tip+bottom, face-oval sides
@@ -25,15 +24,13 @@ const NOSE_PTS = [1, 4];
 const REF_L = 234, REF_R = 454;
 
 let landmarker = null;
-let active = false;
-let phase = "off";  // off | grace | collect | ready
-let graceUntil = 0;
+let phase = "off"; // off | calib | ready
 let neutral = null;
-let calib = [];
-let out = null;     // last emitted position
+let samples = [];
+let out = null;    // last emitted position
 let lastT = null;
-let fx = new OneEuro({ minCutoff: 0.35, beta: 0.015 });
-let fy = new OneEuro({ minCutoff: 0.35, beta: 0.015 });
+let fx = new OneEuro({ minCutoff: 0.22, beta: 0.015 });
+let fy = new OneEuro({ minCutoff: 0.22, beta: 0.015 });
 
 export async function init() {
   const fileset = await FilesetResolver.forVisionTasks("/vendor/mediapipe/wasm");
@@ -50,25 +47,60 @@ export async function init() {
 }
 
 export function isReady() { return !!landmarker; }
-export function isActive() { return active; }
+export function isActive() { return phase !== "off"; }   // calibrating or on
+export function isOn() { return phase === "ready"; }
 
-function showTarget(on) {
+function overlay(on) {
   document.getElementById("head-calib")?.classList.toggle("hidden", !on);
 }
 
-export function toggle() {
-  active = isReady() && !active;
+function reset() {
   neutral = null;
-  calib = [];
+  samples = [];
   out = null;
   lastT = null;
   fx.reset();
   fy.reset();
-  phase = active ? "grace" : "off";
-  graceUntil = performance.now() + GRACE_MS;
-  document.body.classList.toggle("headmode", active);
-  showTarget(active);
-  return active;
+}
+
+export function beginCalibration() {
+  if (!isReady()) return false;
+  reset();
+  phase = "calib";
+  overlay(true);
+  updateOverlay();
+  return true;
+}
+
+export function confirmCalibration() {
+  if (phase !== "calib" || samples.length < MIN_SAMPLES) return false;
+  neutral = {
+    x: median(samples.map((s) => s[0])),
+    y: median(samples.map((s) => s[1])),
+  };
+  phase = "ready";
+  overlay(false);
+  document.body.classList.add("headmode");
+  return true;
+}
+
+export function disable() {
+  phase = "off";
+  reset();
+  overlay(false);
+  document.body.classList.remove("headmode");
+}
+
+function updateOverlay() {
+  const btn = document.getElementById("head-calib-btn");
+  if (!btn) return;
+  if (samples.length < MIN_SAMPLES) {
+    btn.disabled = true;
+    btn.textContent = `HOLD STILL — ${Math.ceil((MIN_SAMPLES - samples.length) / 30)}s`;
+  } else {
+    btn.disabled = false;
+    btn.textContent = "SET CENTER";
+  }
 }
 
 const median = (arr) => {
@@ -85,7 +117,10 @@ export function update(video, t) {
   try {
     face = landmarker.detectForVideo(video, t).faceLandmarks?.[0];
   } catch { /* transient GPU hiccup */ }
-  if (!face) return out ? { present: true, ...out } : { present: false };
+  if (!face) {
+    if (phase === "calib") updateOverlay();
+    return out ? { present: true, ...out } : { present: false };
+  }
 
   const rl = face[REF_L], rr = face[REF_R];
   const width = Math.max(Math.hypot(rl.x - rr.x, rl.y - rr.y), 1e-4);
@@ -95,17 +130,11 @@ export function update(video, t) {
   const ox = (noseX - midX) / width;
   const oy = (noseY - midY) / width;
 
-  if (phase === "grace") {
-    if (performance.now() < graceUntil) return { present: false, calibrating: true };
-    phase = "collect";
-  }
-  if (phase === "collect") {
-    calib.push([ox, oy]);
-    if (calib.length < CALIB_FRAMES) return { present: false, calibrating: true };
-    neutral = { x: median(calib.map((c) => c[0])), y: median(calib.map((c) => c[1])) };
-    calib = [];
-    phase = "ready";
-    showTarget(false);
+  if (phase === "calib") {
+    samples.push([ox, oy]);
+    if (samples.length > MAX_SAMPLES) samples.shift();
+    updateOverlay();
+    return { present: false, calibrating: true };
   }
 
   // mirrored view: turning the head toward the user's right moves the cursor right

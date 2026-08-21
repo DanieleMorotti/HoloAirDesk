@@ -119,6 +119,16 @@ body.headmode #dock-head { border-color: #7dffb0; color: #7dffb0; background: rg
   margin-top: 14px; font-family: var(--font-mono); font-size: 12px;
   letter-spacing: 3px; color: #7dffb0; text-shadow: 0 0 10px rgba(125,255,176,.6);
 }
+#head-calib-btn {
+  pointer-events: auto; margin-top: 16px; padding: 12px 32px;
+  background: rgba(125,255,176,.1); border: 1px solid #7dffb0; color: #7dffb0;
+  font-family: var(--font-mono); font-size: 13px; letter-spacing: 3px; cursor: pointer;
+  clip-path: polygon(10px 0, 100% 0, 100% calc(100% - 10px), calc(100% - 10px) 100%, 0 100%, 0 10px);
+}
+#head-calib-btn:disabled { opacity: .45; cursor: default; }
+#head-calib-btn:not(:disabled):hover, #head-calib-btn:not(:disabled).g-hover {
+  background: rgba(125,255,176,.28); box-shadow: 0 0 20px rgba(125,255,176,.5);
+}
 @keyframes hc-pulse { 50% { transform: scale(.82); } }
 
 @keyframes ripple { from { transform: scale(.4); opacity: .9; } to { transform: scale(2.2); opacity: 0; } }

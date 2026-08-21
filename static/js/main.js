@@ -68,18 +68,63 @@ async function boot() {
     onClap: interactions.onClap,
     onHands: hud.tickFrame,
   });
+  // magnetic cursor (head mode): near a button the pointer locks onto its
+  // center, so micro-jitter cannot shake it off a small target
+  let magnetEl = null;
+  function magnet(hp) {
+    if (!hp.present) { magnetEl = null; return hp; }
+    const ENTER_R = 38, EXIT_R = 58;
+    const center = (el) => {
+      const r = el.getBoundingClientRect();
+      return r.width ? { x: r.left + r.width / 2, y: r.top + r.height / 2 } : null;
+    };
+    if (magnetEl) {
+      const c = center(magnetEl);
+      if (!c || Math.hypot(hp.x - c.x, hp.y - c.y) > EXIT_R) magnetEl = null;
+    }
+    const pinching = engine.hands.some((h) => h.present && h.pinching);
+    if (!magnetEl && !pinching) { // keep an existing lock while pinching, never acquire one
+      let best = null, bd = ENTER_R;
+      for (const el of document.querySelectorAll('[data-gesture="button"]')) {
+        if (el.closest(".hidden")) continue; // skip buttons in hidden overlays
+        const c = center(el);
+        if (!c) continue;
+        const d = Math.hypot(hp.x - c.x, hp.y - c.y);
+        if (d < bd) { bd = d; best = el; }
+      }
+      magnetEl = best;
+    }
+    if (magnetEl) {
+      const c = center(magnetEl);
+      if (c) return { present: true, x: c.x, y: c.y };
+    }
+    return hp;
+  }
+
   startTracking(landmarker, video, (result, t) => {
-    if (head.isActive()) engine.headPoint = head.update(video, t);
+    if (head.isOn()) engine.headPoint = magnet(head.update(video, t));
+    else if (head.isActive()) head.update(video, t); // calibrating: just collect
     engine.processFrame(result, t);
   });
 
   // head-pointer mode (experimental): head steers the cursor, hands pinch
   head.init().catch((e) => console.warn("head pointer unavailable:", e));
   document.getElementById("dock-head").addEventListener("click", () => {
-    if (!head.isReady()) { hud.toast("HEAD POINTER STILL LOADING"); return; }
-    const on = head.toggle();
-    engine.setHeadMode(on);
-    hud.toast(on ? "HEAD POINTER ON" : "HAND POINTERS ON");
+    if (head.isActive()) {
+      head.disable();
+      engine.setHeadMode(false);
+      hud.toast("HAND POINTERS ON");
+    } else if (!head.isReady()) {
+      hud.toast("HEAD POINTER STILL LOADING");
+    } else {
+      head.beginCalibration(); // hands stay active to press SET CENTER
+    }
+  });
+  document.getElementById("head-calib-btn").addEventListener("click", () => {
+    if (head.confirmCalibration()) {
+      engine.setHeadMode(true);
+      hud.toast("HEAD POINTER ON");
+    }
   });
 
   hud.bootMessage("all systems nominal");
