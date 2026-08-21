@@ -79,7 +79,7 @@ async function boot() {
     if (!head.isReady()) { hud.toast("HEAD POINTER STILL LOADING"); return; }
     const on = head.toggle();
     engine.setHeadMode(on);
-    hud.toast(on ? "HEAD POINTER ON — LOOK AT THE CENTER, HOLD STILL" : "HAND POINTERS ON");
+    hud.toast(on ? "HEAD POINTER ON" : "HAND POINTERS ON");
   });
 
   hud.bootMessage("all systems nominal");

@@ -98,6 +98,29 @@ body.headmode #cursor-0 .cursor-dot { background: #7dffb0; box-shadow: 0 0 10px 
 body.headmode #cursor-0.pinch::before { border-color: var(--amber); }
 body.headmode #dock-head { border-color: #7dffb0; color: #7dffb0; background: rgba(125,255,176,.08); }
 
+/* head pointer calibration target */
+#head-calib {
+  position: fixed; left: 50%; top: 50%; transform: translate(-50%, -50%);
+  z-index: 4500; pointer-events: none; text-align: center;
+}
+#head-calib.hidden { display: none; }
+#head-calib .hc-ring {
+  width: 90px; height: 90px; margin: 0 auto; border-radius: 50%;
+  border: 2px solid #7dffb0;
+  box-shadow: 0 0 24px rgba(125,255,176,.5), inset 0 0 16px rgba(125,255,176,.15);
+  animation: hc-pulse 1s ease-in-out infinite;
+}
+#head-calib .hc-dot {
+  position: absolute; left: 50%; top: 45px; transform: translate(-50%, -50%);
+  width: 10px; height: 10px; border-radius: 50%;
+  background: #7dffb0; box-shadow: 0 0 12px #7dffb0;
+}
+#head-calib p {
+  margin-top: 14px; font-family: var(--font-mono); font-size: 12px;
+  letter-spacing: 3px; color: #7dffb0; text-shadow: 0 0 10px rgba(125,255,176,.6);
+}
+@keyframes hc-pulse { 50% { transform: scale(.82); } }
+
 @keyframes ripple { from { transform: scale(.4); opacity: .9; } to { transform: scale(2.2); opacity: 0; } }
 .cursor .click-ripple {
   position: absolute; inset: 0; border-radius: 50%;
