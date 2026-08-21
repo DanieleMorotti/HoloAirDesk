@@ -1,8 +1,9 @@
 # Experimental ideas (MediaPipe-powered)
 
-Proposals for this branch. Status: [ ] proposed · [~] in progress · [x] done
+Proposals for this branch. Status: [ ] proposed · [~] in progress · [x] done · [✗] tried & rejected
 
-## A. [ ] Hologram backdrop (Image Segmenter) — wow 5/5, effort 3/5
+## A. [✗] Hologram backdrop (Image Segmenter) — wow 5/5, effort 3/5
+> Tried on 2026-08-21, rejected: cutout quality not convincing. Commit dropped.
 Replace the dimmed webcam with a real hologram of you: selfie segmentation
 cuts your silhouette out of the frame, rendered to a canvas with a cyan
 scanline/glow shader on the dark grid. The room disappears, *you* become
