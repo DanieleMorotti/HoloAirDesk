@@ -15,8 +15,10 @@ const GAIN_Y = 4.6;
 const EXPO = 1.35;       // >1 compresses small deviations for precision
 const DEAD_PX = 4;       // output hysteresis: moves smaller than this freeze
 const MAX_SPEED = 2400;  // px/s: the cursor glides, it never jumps
-const MIN_SAMPLES = 75;  // ~2.5s of steady pose before SET CENTER unlocks
-const MAX_SAMPLES = 240; // rolling window while the user waits
+// the neutral pose is the median of exactly the last WINDOW samples at the
+// moment SET CENTER is pressed — i.e. your pose from the ~2.5s before the press
+const MIN_SAMPLES = 75;
+const MAX_SAMPLES = 75;
 // ---------------------------------------------------------------------------
 
 // rigid landmarks (blink/expression-proof): nose tip+bottom, face-oval sides
