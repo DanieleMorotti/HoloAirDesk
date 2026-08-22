@@ -190,7 +190,7 @@ export function onGatherCharge(p, x, y, show) {
   el.style.left = `${x}px`;
   el.style.top = `${y}px`;
   el.style.setProperty("--p", `${Math.round(p * 360)}deg`);
-  el.querySelector("span").textContent = "HOLD PALM TO GATHER";
+  el.querySelector("span").textContent = "HOLD TO GATHER";
 }
 
 export function onGatherStart(x, y) {

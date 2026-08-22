@@ -48,16 +48,18 @@ function isFist(lm) {
   return curled >= 3;
 }
 
-// Is the PALM (not the back or the edge of the hand) facing the camera?
+// Is the BACK of the hand (not the palm or the edge) facing the camera?
+// Chosen as the gather trigger because normal pointing/pinching happens
+// palm-out, so the back of the hand cannot be shown by accident.
 // The cross product of wrist->index-MCP and wrist->pinky-MCP flips sign
 // between palm and back, and shrinks to ~0 when the hand is edge-on; the
 // expected sign depends on which hand it is (MediaPipe label, raw video).
-function isPalmFacing(lm, label) {
+function isBackOfHand(lm, label) {
   const v1x = lm[5].x - lm[0].x, v1y = lm[5].y - lm[0].y;
   const v2x = lm[17].x - lm[0].x, v2y = lm[17].y - lm[0].y;
   const size = Math.max(dist(lm[0], lm[9]), 1e-4);
   const cross = (v1x * v2y - v1y * v2x) / (size * size);
-  return label === "Left" ? cross > 0.22 : cross < -0.22;
+  return label === "Left" ? cross < -0.22 : cross > 0.22;
 }
 
 class HandState {
@@ -253,8 +255,8 @@ export class GestureEngine {
 
     // pose flags + raw screen position for the gather gesture (valid in every
     // mode, even for the non-driving hand of head mode). The gather pose
-    // requires the PALM toward the camera, not just a vertical hand.
-    hand.openVertical = isOpenVertical(lm) && isPalmFacing(lm, label);
+    // requires the BACK of the hand toward the camera, not just a vertical hand.
+    hand.openVertical = isOpenVertical(lm) && isBackOfHand(lm, label);
     hand.fist = isFist(lm);
     hand.rawScreen = { x: px, y: py };
 
