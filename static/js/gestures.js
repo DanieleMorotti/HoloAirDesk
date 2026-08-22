@@ -45,6 +45,18 @@ function isFist(lm) {
   return curled >= 3;
 }
 
+// Is the PALM (not the back or the edge of the hand) facing the camera?
+// The cross product of wrist->index-MCP and wrist->pinky-MCP flips sign
+// between palm and back, and shrinks to ~0 when the hand is edge-on; the
+// expected sign depends on which hand it is (MediaPipe label, raw video).
+function isPalmFacing(lm, label) {
+  const v1x = lm[5].x - lm[0].x, v1y = lm[5].y - lm[0].y;
+  const v2x = lm[17].x - lm[0].x, v2y = lm[17].y - lm[0].y;
+  const size = Math.max(dist(lm[0], lm[9]), 1e-4);
+  const cross = (v1x * v2y - v1y * v2x) / (size * size);
+  return label === "Left" ? cross < -0.22 : cross > 0.22;
+}
+
 class HandState {
   constructor(slot) {
     this.slot = slot;
@@ -105,13 +117,37 @@ export class GestureEngine {
     const lms = result.landmarks || [];
     const handedness = result.handedness || result.handednesses || [];
 
+    let entries = [];
     for (let i = 0; i < lms.length && i < 2; i++) {
-      const label = handedness[i]?.[0]?.categoryName || (i === 0 ? "Left" : "Right");
-      let slot = label === "Left" ? 0 : 1;
+      const cat = handedness[i]?.[0] || {};
+      entries.push({
+        lm: lms[i],
+        label: cat.categoryName || (i === 0 ? "Left" : "Right"),
+        score: cat.score ?? 0,
+      });
+    }
+
+    // an edge-on hand with all fingers visible is sometimes detected twice
+    // (a phantom hand among the fingers): if two detections overlap almost
+    // completely, keep only the more confident one
+    if (entries.length === 2) {
+      const pc = entries.map((e) => ({
+        x: (e.lm[0].x + e.lm[5].x + e.lm[17].x) / 3,
+        y: (e.lm[0].y + e.lm[5].y + e.lm[17].y) / 3,
+        s: Math.max(dist(e.lm[0], e.lm[9]), 1e-4),
+      }));
+      const gap = Math.hypot(pc[0].x - pc[1].x, pc[0].y - pc[1].y) / ((pc[0].s + pc[1].s) / 2);
+      if (gap < 0.65) {
+        entries = [entries[entries[0].score >= entries[1].score ? 0 : 1]];
+      }
+    }
+
+    for (const e of entries) {
+      let slot = e.label === "Left" ? 0 : 1;
       if (seen[slot]) slot = 1 - slot; // both detected as same side: split them
       if (seen[slot]) continue;
       seen[slot] = true;
-      this.updateHand(this.hands[slot], lms[i], t);
+      this.updateHand(this.hands[slot], e.lm, e.label, t);
     }
 
     for (const hand of this.hands) {
@@ -192,7 +228,7 @@ export class GestureEngine {
     }
   }
 
-  updateHand(hand, lm, t) {
+  updateHand(hand, lm, label, t) {
     hand.lastSeen = t;
     hand.size = Math.max(dist(lm[0], lm[9]), 0.02);
     hand.palm = {
@@ -209,8 +245,9 @@ export class GestureEngine {
     const py = Math.min(Math.max(ny * innerHeight, 0), innerHeight - 1);
 
     // pose flags + raw screen position for the gather gesture (valid in every
-    // mode, even for the non-driving hand of head mode)
-    hand.openVertical = isOpenVertical(lm);
+    // mode, even for the non-driving hand of head mode). The gather pose
+    // requires the PALM toward the camera, not just a vertical hand.
+    hand.openVertical = isOpenVertical(lm) && isPalmFacing(lm, label);
     hand.fist = isFist(lm);
     hand.rawScreen = { x: px, y: py };
 

@@ -190,7 +190,7 @@ export function onGatherCharge(p, x, y, show) {
   el.style.left = `${x}px`;
   el.style.top = `${y}px`;
   el.style.setProperty("--p", `${Math.round(p * 360)}deg`);
-  el.querySelector("span").textContent = "HOLD TO GATHER";
+  el.querySelector("span").textContent = "HOLD PALM TO GATHER";
 }
 
 export function onGatherStart(x, y) {
@@ -199,7 +199,7 @@ export function onGatherStart(x, y) {
   el.classList.add("armed");
   el.style.left = `${x}px`;
   el.style.top = `${y}px`;
-  el.querySelector("span").textContent = "✊ CLOSE ALL · ✋ RELEASE";
+  el.querySelector("span").textContent = "✊ FIST = CLOSE ALL · TURN OR DROP HAND = RELEASE";
   windows.gatherStart(x, y);
   sfx.open();
 }
