@@ -19,6 +19,9 @@ const CLAP_FAR = 1.9;      // ...coming from at least this far apart
 const CLAP_LOSS_NEAR = 1.7;// tracking often drops a hand right at contact:
 const CLAP_LOSS_MS = 160;  // treat approach + hand-loss as a clap too
 const CLAP_WINDOW_MS = 600;
+const CLAP_MIN_AGE_MS = 300;  // both hands must be tracked this long: phantom
+                              // detections flicker in briefly and must not clap
+const CLAP_SIZE_RATIO = 1.6;  // real hands have similar sizes on camera
 const GATHER_HOLD_MS = 1500;  // open hand held vertical this long = gather
 const GATHER_GRACE_MS = 700;  // mid-curl fingers are neither open nor fist
 const CLAP_COOLDOWN_MS = 1400;
@@ -54,7 +57,7 @@ function isPalmFacing(lm, label) {
   const v2x = lm[17].x - lm[0].x, v2y = lm[17].y - lm[0].y;
   const size = Math.max(dist(lm[0], lm[9]), 1e-4);
   const cross = (v1x * v2y - v1y * v2x) / (size * size);
-  return label === "Left" ? cross < -0.22 : cross > 0.22;
+  return label === "Left" ? cross > 0.22 : cross < -0.22;
 }
 
 class HandState {
@@ -62,6 +65,7 @@ class HandState {
     this.slot = slot;
     this.present = false;
     this.lastSeen = 0;
+    this.firstSeen = 0;
     this.fx = new OneEuro({ minCutoff: 1.1, beta: 0.02 });
     this.fy = new OneEuro({ minCutoff: 1.1, beta: 0.02 });
     this.x = 0; this.y = 0;
@@ -137,7 +141,10 @@ export class GestureEngine {
         s: Math.max(dist(e.lm[0], e.lm[9]), 1e-4),
       }));
       const gap = Math.hypot(pc[0].x - pc[1].x, pc[0].y - pc[1].y) / ((pc[0].s + pc[1].s) / 2);
-      if (gap < 0.65) {
+      const ratio = Math.max(pc[0].s, pc[1].s) / Math.min(pc[0].s, pc[1].s);
+      // real hands never overlap this much while both stay trackable, and a
+      // phantom detected among the fingers usually has a very different size
+      if (gap < 1.0 || (gap < 1.8 && ratio > 1.6)) {
         entries = [entries[entries[0].score >= entries[1].score ? 0 : 1]];
       }
     }
@@ -253,6 +260,7 @@ export class GestureEngine {
 
     if (!hand.present) {
       hand.present = true;
+      hand.firstSeen = t;
       hand.fx.reset();
       hand.fy.reset();
       hand.el.style.display = "block";
@@ -311,6 +319,8 @@ export class GestureEngine {
     // followed by losing a hand near the other one also counts as a clap
     const other = this.hands[1 - hand.slot];
     if (other.present && !hand.pinching && !other.pinching &&
+        t - hand.firstSeen > CLAP_MIN_AGE_MS && t - other.firstSeen > CLAP_MIN_AGE_MS &&
+        Math.max(hand.size, other.size) / Math.min(hand.size, other.size) < CLAP_SIZE_RATIO &&
         t - this.lastClap > CLAP_COOLDOWN_MS && this.palmGap.length) {
       const latest = this.palmGap[this.palmGap.length - 1];
       const wasFar = this.palmGap.some((s) => s.gap > CLAP_FAR);
@@ -339,7 +349,10 @@ export class GestureEngine {
     this.palmGap.push({ t, gap });
     while (this.palmGap.length && t - this.palmGap[0].t > CLAP_WINDOW_MS) this.palmGap.shift();
 
-    if (gap < CLAP_NEAR && !a.pinching && !b.pinching && t - this.lastClap > CLAP_COOLDOWN_MS) {
+    const bothMature = t - a.firstSeen > CLAP_MIN_AGE_MS && t - b.firstSeen > CLAP_MIN_AGE_MS;
+    const similarSize = Math.max(a.size, b.size) / Math.min(a.size, b.size) < CLAP_SIZE_RATIO;
+    if (gap < CLAP_NEAR && !a.pinching && !b.pinching && bothMature && similarSize &&
+        t - this.lastClap > CLAP_COOLDOWN_MS) {
       const wasFar = this.palmGap.some((s) => s.gap > CLAP_FAR);
       if (wasFar) {
         this.lastClap = t;
