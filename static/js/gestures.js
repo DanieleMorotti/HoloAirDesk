@@ -19,9 +19,31 @@ const CLAP_FAR = 1.9;      // ...coming from at least this far apart
 const CLAP_LOSS_NEAR = 1.7;// tracking often drops a hand right at contact:
 const CLAP_LOSS_MS = 160;  // treat approach + hand-loss as a clap too
 const CLAP_WINDOW_MS = 600;
+const GATHER_HOLD_MS = 1500;  // open hand held vertical this long = gather
+const GATHER_GRACE_MS = 700;  // mid-curl fingers are neither open nor fist
 const CLAP_COOLDOWN_MS = 1400;
 
 const dist = (a, b) => Math.hypot(a.x - b.x, a.y - b.y);
+
+// finger tips vs their PIP joints, measured from the wrist:
+// extended finger = tip clearly beyond the joint, curled = tip behind it
+const FINGERS = [[8, 6], [12, 10], [16, 14], [20, 18]];
+
+function isOpenVertical(lm) {
+  const extended = FINGERS.every(([tip, pip]) => dist(lm[tip], lm[0]) > dist(lm[pip], lm[0]) * 1.2);
+  if (!extended) return false;
+  // fingers pointing up: wrist -> middle-MCP vector within ~35 deg of vertical
+  const vx = lm[9].x - lm[0].x, vy = lm[9].y - lm[0].y;
+  return -vy > 1.4 * Math.abs(vx);
+}
+
+function isFist(lm) {
+  let curled = 0;
+  for (const [tip, pip] of FINGERS) {
+    if (dist(lm[tip], lm[0]) < dist(lm[pip], lm[0]) * 1.05) curled++;
+  }
+  return curled >= 3;
+}
 
 class HandState {
   constructor(slot) {
@@ -49,6 +71,9 @@ export class GestureEngine {
     // head-pointer mode: the head drives the (single) cursor, one hand pinches
     this.headMode = false;
     this.headPoint = { present: false, x: 0, y: 0 };
+    // gather gesture: open hand held vertical -> windows condense to the hand,
+    // fist -> close them all, relaxing the hand -> they fly back
+    this.gather = { state: "idle", slot: -1, t0: 0, lastOkT: 0 };
   }
 
   setHeadMode(on) {
@@ -106,8 +131,65 @@ export class GestureEngine {
       this.h.onMove?.(0, h0.x, h0.y, false);
     }
 
+    this.updateGather(t);
     this.detectClap(t);
     this.h.onHands?.(this.hands.filter((h) => h.present).length);
+  }
+
+  updateGather(t) {
+    const g = this.gather;
+
+    if (g.state === "idle") {
+      const cand = this.hands.find((h) => h.present && h.openVertical && !h.pinching);
+      if (cand && this.h.canGather?.()) {
+        g.state = "charging";
+        g.slot = cand.slot;
+        g.t0 = t;
+      }
+      return;
+    }
+
+    const hand = this.hands[g.slot];
+    const pos = hand.rawScreen || { x: 0, y: 0 };
+
+    if (g.state === "charging") {
+      if (!hand.present || !hand.openVertical || !this.h.canGather?.()) {
+        g.state = "idle";
+        g.slot = -1;
+        this.h.onGatherCharge?.(0, 0, 0, false);
+        return;
+      }
+      const p = (t - g.t0) / GATHER_HOLD_MS;
+      if (p >= 1) {
+        g.state = "gathered";
+        g.lastOkT = t;
+        this.h.onGatherCharge?.(1, pos.x, pos.y, false);
+        this.h.onGatherStart?.(pos.x, pos.y);
+      } else {
+        this.h.onGatherCharge?.(p, pos.x, pos.y, true);
+      }
+      return;
+    }
+
+    // gathered: fist closes everything, a relaxed/lost hand drops them back
+    if (hand.present && hand.fist) {
+      g.state = "idle";
+      g.slot = -1;
+      this.h.onGatherClose?.(pos.x, pos.y);
+      return;
+    }
+    if (hand.present && hand.openVertical) {
+      g.lastOkT = t;
+      this.h.onGatherMove?.(pos.x, pos.y);
+      return;
+    }
+    if (t - g.lastOkT > GATHER_GRACE_MS) {
+      g.state = "idle";
+      g.slot = -1;
+      this.h.onGatherCancel?.();
+    } else if (hand.present) {
+      this.h.onGatherMove?.(pos.x, pos.y);
+    }
   }
 
   updateHand(hand, lm, t) {
@@ -125,6 +207,12 @@ export class GestureEngine {
     const ny = (rawY - PIVOT_Y) * AMP_Y + 0.5;
     const px = Math.min(Math.max(nx * innerWidth, 0), innerWidth - 1);
     const py = Math.min(Math.max(ny * innerHeight, 0), innerHeight - 1);
+
+    // pose flags + raw screen position for the gather gesture (valid in every
+    // mode, even for the non-driving hand of head mode)
+    hand.openVertical = isOpenVertical(lm);
+    hand.fist = isFist(lm);
+    hand.rawScreen = { x: px, y: py };
 
     if (!hand.present) {
       hand.present = true;

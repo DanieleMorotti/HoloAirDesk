@@ -303,6 +303,51 @@ export async function fileDeleted(name) {
   await refreshLibrary();
 }
 
+/* ---------- gather gesture: windows condense around the open hand ---------- */
+
+function applyGather(el, x, y, i, n) {
+  // orbit slot around the hand point; CSS transition does the easing
+  const cx = el.offsetLeft + el.offsetWidth / 2;
+  const cy = el.offsetTop + el.offsetHeight / 2;
+  const a = (i / Math.max(n, 1)) * Math.PI * 2 - Math.PI / 2;
+  const rad = n > 1 ? 55 : 0;
+  const tx = x + Math.cos(a) * rad - cx;
+  const ty = y + Math.sin(a) * rad - cy;
+  el.style.transform = `translate(${tx}px, ${ty}px) scale(0.13)`;
+}
+
+export function gatherStart(x, y) {
+  const els = [...wins.values()].map((w) => w.el);
+  els.forEach((el, i) => {
+    el.classList.add("gathered");
+    applyGather(el, x, y, i, els.length);
+  });
+}
+
+export function gatherMove(x, y) {
+  const els = [...wins.values()].map((w) => w.el);
+  els.forEach((el, i) => applyGather(el, x, y, i, els.length));
+}
+
+export function gatherCancel() {
+  for (const w of wins.values()) {
+    const el = w.el;
+    el.style.transform = `scale(${getScale(el)})`;
+    setTimeout(() => el.classList.remove("gathered"), 500);
+  }
+}
+
+export function gatherClose() {
+  // skip the normal closing animation: it would snap the tiny windows back
+  // to their original spots — fade them out right where the hand crushed them
+  for (const [id, w] of [...wins]) {
+    wins.delete(id);
+    w.extra?.dispose?.();
+    w.el.style.opacity = "0";
+    setTimeout(() => w.el.remove(), 300);
+  }
+}
+
 export function init() {
   space = document.getElementById("space");
 }

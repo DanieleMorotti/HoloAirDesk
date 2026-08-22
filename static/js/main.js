@@ -67,6 +67,12 @@ async function boot() {
     onUp: interactions.onUp,
     onClap: interactions.onClap,
     onHands: hud.tickFrame,
+    canGather: interactions.canGather,
+    onGatherCharge: interactions.onGatherCharge,
+    onGatherStart: interactions.onGatherStart,
+    onGatherMove: interactions.onGatherMove,
+    onGatherClose: interactions.onGatherClose,
+    onGatherCancel: interactions.onGatherCancel,
   });
   startTracking(landmarker, video, (result, t) => {
     if (head.isOn()) engine.headPoint = head.update(video, t);

@@ -159,14 +159,67 @@ export function onUp(slot, x, y, wasClick) {
   hand.winEl = null;
 }
 
-export function onClap(cx, cy) {
-  if (!windows.anyOpen()) return;
+function boom(cx, cy) {
   const wave = document.getElementById("shockwave");
   wave.style.left = `${cx}px`;
   wave.style.top = `${cy}px`;
   wave.classList.remove("boom");
   void wave.offsetWidth;
   wave.classList.add("boom");
+}
+
+export function onClap(cx, cy) {
+  if (!windows.anyOpen()) return;
+  boom(cx, cy);
   sfx.clap();
   windows.closeAll();
+}
+
+/* ---------- gather gesture (open hand held vertical -> fist) ---------- */
+
+const gatherRing = () => document.getElementById("gather-ring");
+
+export function canGather() {
+  return windows.anyOpen();
+}
+
+export function onGatherCharge(p, x, y, show) {
+  const el = gatherRing();
+  if (!show) { el.classList.add("hidden"); return; }
+  el.classList.remove("hidden", "armed");
+  el.style.left = `${x}px`;
+  el.style.top = `${y}px`;
+  el.style.setProperty("--p", `${Math.round(p * 360)}deg`);
+  el.querySelector("span").textContent = "HOLD TO GATHER";
+}
+
+export function onGatherStart(x, y) {
+  const el = gatherRing();
+  el.classList.remove("hidden");
+  el.classList.add("armed");
+  el.style.left = `${x}px`;
+  el.style.top = `${y}px`;
+  el.querySelector("span").textContent = "✊ CLOSE ALL · ✋ RELEASE";
+  windows.gatherStart(x, y);
+  sfx.open();
+}
+
+export function onGatherMove(x, y) {
+  const el = gatherRing();
+  el.style.left = `${x}px`;
+  el.style.top = `${y}px`;
+  windows.gatherMove(x, y);
+}
+
+export function onGatherClose(x, y) {
+  gatherRing().classList.add("hidden");
+  boom(x, y);
+  sfx.clap();
+  windows.gatherClose();
+}
+
+export function onGatherCancel() {
+  gatherRing().classList.add("hidden");
+  windows.gatherCancel();
+  sfx.close();
 }

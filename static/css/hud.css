@@ -478,6 +478,39 @@ button.g-hover, .dock-btn.g-hover, .file-card.g-hover { outline: 1px solid var(-
 }
 #help-close:hover, #help-close.g-hover { background: rgba(78,225,255,.3); box-shadow: 0 0 24px var(--cyan-dim); }
 
+/* ---------- gather gesture ---------- */
+.holo-window.gathered {
+  transition: transform .45s cubic-bezier(.25, 1.2, .35, 1), opacity .25s ease;
+  pointer-events: none;
+  box-shadow: 0 0 40px rgba(78,225,255,.5);
+}
+#gather-ring {
+  position: fixed; z-index: 2500;
+  width: 86px; height: 86px; margin: -43px 0 0 -43px;
+  pointer-events: none;
+}
+#gather-ring.hidden { display: none; }
+#gather-ring .gr-disc {
+  width: 100%; height: 100%; border-radius: 50%;
+  background: conic-gradient(var(--cyan) var(--p, 0deg), rgba(78,225,255,.12) 0);
+  -webkit-mask: radial-gradient(closest-side, transparent 70%, black 73%);
+  mask: radial-gradient(closest-side, transparent 70%, black 73%);
+  filter: drop-shadow(0 0 10px var(--cyan-dim));
+}
+#gather-ring span {
+  position: absolute; top: 100%; left: 50%; transform: translateX(-50%);
+  margin-top: 8px; white-space: nowrap;
+  font-family: var(--font-mono); font-size: 10px; letter-spacing: 2px;
+  color: var(--cyan); text-shadow: 0 0 8px var(--cyan-dim);
+}
+#gather-ring.armed .gr-disc {
+  background: conic-gradient(#7dffb0 360deg, transparent 0);
+  filter: drop-shadow(0 0 14px rgba(125,255,176,.7));
+  animation: gr-pulse .9s ease-in-out infinite;
+}
+#gather-ring.armed span { color: #7dffb0; text-shadow: 0 0 8px rgba(125,255,176,.6); }
+@keyframes gr-pulse { 50% { transform: scale(1.12); } }
+
 /* ---------- clap shockwave ---------- */
 #shockwave {
   position: fixed; z-index: 3000; width: 40px; height: 40px;
