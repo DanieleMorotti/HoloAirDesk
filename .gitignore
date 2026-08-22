@@ -7,3 +7,5 @@ certs/
 models/*.gguf
 models/*.bin
 .venv/
+tools/
+third_party

@@ -23,7 +23,11 @@ case "${HOLO_MODEL:-lfm}" in
   qwen) LLM_MODEL="models/Qwen3.5-4B-Q8_0.gguf" ;;
   *)    LLM_MODEL="models/LFM2.5-2.6B-Q8_0.gguf" ;;
 esac
-WHISPER_MODEL="models/ggml-large-v3-turbo-q5_0.bin"
+if [[ "${HOLO_MODEL:-lfm}" != qwen && -z "${HOLO_LLM_MODEL:-}" && ! -f "$LLM_MODEL" && -f "models/LFM2.5-1.2B-Thinking-Q8_0.gguf" ]]; then
+  LLM_MODEL="models/LFM2.5-1.2B-Thinking-Q8_0.gguf"
+fi
+LLM_MODEL="${HOLO_LLM_MODEL:-$LLM_MODEL}"
+WHISPER_MODEL="${HOLO_WHISPER_MODEL:-models/ggml-large-v3-turbo-q5_0.bin}"
 
 mkdir -p logs
 
