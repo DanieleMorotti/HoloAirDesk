@@ -138,13 +138,7 @@ def close_file(ctx: RunContextWrapper, name: str) -> str:
     return f"{name} closed."
 
 
-@function_tool
-def play_pause_audio(name: str) -> str:
-    """Start or pause playback of an audio file. If the file is not open yet, it is opened and starts playing.
-
-    Args:
-        name: Exact audio file name from the library.
-    """
+def _check_audio(name: str):
     try:
         if not safe_path(name).exists():
             return f"Error: {name} not found in library."
@@ -152,7 +146,42 @@ def play_pause_audio(name: str) -> str:
         return f"Error: {e}"
     if file_kind(name) != "audio":
         return f"Error: {name} is not an audio file."
-    return f"Playback of {name} toggled."
+    return None
+
+
+@function_tool
+def play_audio(ctx: RunContextWrapper, name: str) -> str:
+    """Start playing an audio file. If the file is not open yet, it is opened and starts playing.
+
+    Args:
+        name: Exact audio file name from the library.
+    """
+    err = _check_audio(name)
+    if err:
+        return err
+    playing = (ctx.context or {}).get("playing")
+    if playing is not None:
+        if name in playing:
+            return f"{name} is already playing."
+        playing.append(name)
+    return f"{name} is now playing."
+
+
+@function_tool
+def pause_audio(ctx: RunContextWrapper, name: str) -> str:
+    """Pause an audio file that is currently playing.
+
+    Args:
+        name: Exact audio file name from the library.
+    """
+    err = _check_audio(name)
+    if err:
+        return err
+    playing = (ctx.context or {}).get("playing")
+    if playing is not None and name in playing:
+        playing.remove(name)
+        return f"{name} paused."
+    return f"{name} was not playing — nothing to do."
 
 
 @function_tool(name_override="delete_file")
@@ -169,7 +198,7 @@ def delete_file_tool(name: str) -> str:
     return f"{name} deleted."
 
 
-TOOLS = [open_file, read_file, write_file, close_file, play_pause_audio, delete_file_tool]
+TOOLS = [open_file, read_file, write_file, close_file, play_audio, pause_audio, delete_file_tool]
 
 # tool name -> UI event sent to the browser on success
 UI_EVENTS = {
@@ -177,12 +206,13 @@ UI_EVENTS = {
     "write_file": lambda a: {"type": "file_changed", "name": a.get("name", ""),
                              "kind": file_kind(a.get("name", ""))},
     "close_file": lambda a: {"type": "close_file", "name": a.get("name", "")},
-    "play_pause_audio": lambda a: {"type": "toggle_audio", "name": a.get("name", "")},
+    "play_audio": lambda a: {"type": "audio_play", "name": a.get("name", "")},
+    "pause_audio": lambda a: {"type": "audio_pause", "name": a.get("name", "")},
     "delete_file": lambda a: {"type": "file_deleted", "name": a.get("name", "")},
 }
 
 
-def build_agent(open_files: list, selection: dict = None) -> Agent:
+def build_agent(open_files: list, selection: dict = None, playing: list = None) -> Agent:
     lib = ", ".join(f"{f['name']} ({f['kind']})" for f in list_files()) or "(empty)"
     opened = ", ".join(open_files) if open_files else "(none)"
 
@@ -192,6 +222,8 @@ def build_agent(open_files: list, selection: dict = None) -> Agent:
         f"Library files: {lib}",
         f"Files currently open on screen: {opened}",
     ]
+    if playing:
+        lines.append(f"Audio currently playing: {', '.join(playing)}")
     if selection:
         lines.append(
             f"Selected text by user: the user has an active selection in {selection['file']} "
@@ -210,7 +242,8 @@ def build_agent(open_files: list, selection: dict = None) -> Agent:
         "- delete_file works on any file type.",
         "- close_file closes a window that is open on screen (it does not delete anything). "
         "If asked to close a file that is not open, just say it is not open — never open it first.",
-        "- play_pause_audio starts or pauses an audio file; it opens the player if needed.",
+        "- play_audio starts an audio file (it opens the player if needed); pause_audio "
+        "pauses it. One call is enough — both report the resulting state.",
     ]
     if selection:
         lines.append(
@@ -240,6 +273,7 @@ class ChatRequest(BaseModel):
     session_id: str
     message: str
     open_files: list = []
+    playing: list = []  # audio files currently playing on screen
 
 
 def sse(payload: dict) -> str:
@@ -252,14 +286,15 @@ async def agent_events(req: ChatRequest) -> AsyncIterator[str]:
 
     m = SELECTION_RE.search(req.message)
     selection = {"file": m.group("file"), "text": m.group("text")} if m else None
-    agent = build_agent(req.open_files, selection)
+    agent = build_agent(req.open_files, selection, req.playing)
 
     try:
         result = Runner.run_streamed(
             agent,
             input=history[-MAX_HISTORY:] + [{"role": "user", "content": req.message}],
             max_turns=MAX_TURNS,
-            context={"selection": selection, "open_files": list(req.open_files)},
+            context={"selection": selection, "open_files": list(req.open_files),
+                     "playing": list(req.playing)},
         )
         async for event in result.stream_events():
             if event.type == "raw_response_event":

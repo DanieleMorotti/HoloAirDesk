@@ -219,7 +219,7 @@ function openAudio(name) {
 
   wins.set(id, {
     el, name, kind: "audio",
-    extra: { dispose() { cancelAnimationFrame(raf); audio.pause(); audio.src = ""; actx?.close?.(); } },
+    extra: { audio, btn, dispose() { cancelAnimationFrame(raf); audio.pause(); audio.src = ""; actx?.close?.(); } },
   });
   return el;
 }
@@ -307,10 +307,22 @@ export function closeFileWindow(name) {
   closeWindow(`file:${name}`);
 }
 
-export async function toggleAudio(name) {
+export function getPlayingAudio() {
+  return [...wins.values()]
+    .filter((w) => w.kind === "audio" && w.extra.audio && !w.extra.audio.paused)
+    .map((w) => w.name);
+}
+
+// idempotent: sets the desired state instead of toggling
+export async function setAudioPlaying(name, playing) {
   const id = `file:${name}`;
-  if (!wins.has(id)) await openFile(name, "audio");
-  wins.get(id)?.el.querySelector(".audio-btn")?.click();
+  if (!wins.has(id)) {
+    if (!playing) return; // nothing to pause
+    await openFile(name, "audio");
+  }
+  const win = wins.get(id);
+  if (!win?.extra?.audio) return;
+  if (playing !== !win.extra.audio.paused) win.extra.btn.click();
 }
 
 /* ---------- gather gesture: windows condense around the open hand ---------- */

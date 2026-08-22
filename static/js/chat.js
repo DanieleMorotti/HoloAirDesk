@@ -39,7 +39,8 @@ const TOOL_LABELS = {
   write_file: "WRITING",
   replace_selected_text: "EDITING SELECTION",
   close_file: "CLOSING",
-  play_pause_audio: "AUDIO",
+  play_audio: "PLAYING",
+  pause_audio: "PAUSING",
   delete_file: "DELETING",
 };
 
@@ -98,7 +99,12 @@ export async function send(text) {
     const resp = await fetch("/api/chat", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ session_id: sessionId, message: agentMessage, open_files: windows.getOpenFiles() }),
+      body: JSON.stringify({
+        session_id: sessionId,
+        message: agentMessage,
+        open_files: windows.getOpenFiles(),
+        playing: windows.getPlayingAudio(),
+      }),
     });
     if (!resp.ok || !resp.body) throw new Error(`HTTP ${resp.status}`);
 
@@ -141,8 +147,11 @@ async function handleEvent(ev, ui) {
     case "close_file":
       windows.closeFileWindow(ev.name);
       break;
-    case "toggle_audio":
-      await windows.toggleAudio(ev.name);
+    case "audio_play":
+      await windows.setAudioPlaying(ev.name, true);
+      break;
+    case "audio_pause":
+      await windows.setAudioPlaying(ev.name, false);
       break;
     case "open_file":
       await windows.openFile(ev.name);
