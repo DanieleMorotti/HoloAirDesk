@@ -303,6 +303,16 @@ export async function fileDeleted(name) {
   await refreshLibrary();
 }
 
+export function closeFileWindow(name) {
+  closeWindow(`file:${name}`);
+}
+
+export async function toggleAudio(name) {
+  const id = `file:${name}`;
+  if (!wins.has(id)) await openFile(name, "audio");
+  wins.get(id)?.el.querySelector(".audio-btn")?.click();
+}
+
 /* ---------- gather gesture: windows condense around the open hand ---------- */
 
 function applyGather(el, x, y, i, n) {

@@ -38,6 +38,8 @@ const TOOL_LABELS = {
   read_file: "READING",
   write_file: "WRITING",
   replace_selected_text: "EDITING SELECTION",
+  close_file: "CLOSING",
+  play_pause_audio: "AUDIO",
   delete_file: "DELETING",
 };
 
@@ -64,6 +66,34 @@ export async function send(text) {
     messages.scrollTop = messages.scrollHeight;
   };
 
+  // one compact activity line per turn instead of a chip per tool call:
+  // it shows the tool currently running, then collapses to a summary
+  // (click to expand the full list)
+  let toolChip = null;
+  const toolLog = [];
+  const onTool = (name, args) => {
+    const label = `${TOOL_LABELS[name] || name} ${args?.name || ""}`.trim();
+    toolLog.push(label);
+    if (!toolChip) toolChip = addMsg("tool");
+    toolChip.textContent = `⟐ ${label}…`;
+    messages.scrollTop = messages.scrollHeight;
+  };
+  const finishTools = () => {
+    if (!toolChip) return;
+    if (toolLog.length === 1) {
+      toolChip.textContent = `⟐ ${toolLog[0]}`;
+    } else {
+      let expanded = false;
+      const summary = `⟐ ${toolLog.length} OPERATIONS ▸`;
+      toolChip.textContent = summary;
+      toolChip.classList.add("expandable");
+      toolChip.addEventListener("click", () => {
+        expanded = !expanded;
+        toolChip.textContent = expanded ? `⟐ ${toolLog.join("\n⟐ ")}` : summary;
+      });
+    }
+  };
+
   try {
     const resp = await fetch("/api/chat", {
       method: "POST",
@@ -86,26 +116,33 @@ export async function send(text) {
         if (!line.startsWith("data: ")) continue;
         let ev;
         try { ev = JSON.parse(line.slice(6)); } catch { continue; }
-        await handleEvent(ev, appendDelta);
+        await handleEvent(ev, { appendDelta, onTool });
       }
     }
   } catch (e) {
     addMsg("error", `link error: ${e.message}`);
     sfx.error();
   } finally {
+    finishTools();
     holoMsg?.classList.remove("streaming");
     if (holoMsg && !holoMsg.textContent.trim()) holoMsg.remove();
     busy = false;
   }
 }
 
-async function handleEvent(ev, appendDelta) {
+async function handleEvent(ev, ui) {
   switch (ev.type) {
     case "delta":
-      appendDelta(ev.text);
+      ui.appendDelta(ev.text);
       break;
     case "tool":
-      addMsg("tool", `⟐ ${TOOL_LABELS[ev.name] || ev.name} ${ev.args?.name || ""}`.trim());
+      ui.onTool(ev.name, ev.args);
+      break;
+    case "close_file":
+      windows.closeFileWindow(ev.name);
+      break;
+    case "toggle_audio":
+      await windows.toggleAudio(ev.name);
       break;
     case "open_file":
       await windows.openFile(ev.name);

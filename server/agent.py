@@ -51,7 +51,7 @@ SELECTION_RE = re.compile(
 
 
 @function_tool
-def open_file(name: str) -> str:
+def open_file(ctx: RunContextWrapper, name: str) -> str:
     """Open a library file in a holographic window on the user's screen. Works for text, image and audio files.
 
     Args:
@@ -62,6 +62,9 @@ def open_file(name: str) -> str:
             return f"Error: {name} not found in library."
     except ValueError as e:
         return f"Error: {e}"
+    opened = (ctx.context or {}).get("open_files")
+    if opened is not None and name not in opened:
+        opened.append(name)  # keep the open-state current within this turn
     kind = file_kind(name)
     if kind in ("image", "audio"):
         return (f"{name} ({kind}) is now open and visible on the user's screen. "
@@ -121,6 +124,37 @@ def replace_selected_text(ctx: RunContextWrapper, new_text: str) -> str:
     return f"{sel['file']} updated with the new text."
 
 
+@function_tool
+def close_file(ctx: RunContextWrapper, name: str) -> str:
+    """Close a file window that is currently open on the user's screen.
+
+    Args:
+        name: Exact file name of the open window to close.
+    """
+    open_files = (ctx.context or {}).get("open_files")
+    if not open_files or name not in open_files:
+        return f"Error: {name} is not open on screen — there is nothing to close."
+    open_files.remove(name)
+    return f"{name} closed."
+
+
+@function_tool
+def play_pause_audio(name: str) -> str:
+    """Start or pause playback of an audio file. If the file is not open yet, it is opened and starts playing.
+
+    Args:
+        name: Exact audio file name from the library.
+    """
+    try:
+        if not safe_path(name).exists():
+            return f"Error: {name} not found in library."
+    except ValueError as e:
+        return f"Error: {e}"
+    if file_kind(name) != "audio":
+        return f"Error: {name} is not an audio file."
+    return f"Playback of {name} toggled."
+
+
 @function_tool(name_override="delete_file")
 def delete_file_tool(name: str) -> str:
     """Permanently delete a file from the library.
@@ -135,13 +169,15 @@ def delete_file_tool(name: str) -> str:
     return f"{name} deleted."
 
 
-TOOLS = [open_file, read_file, write_file, delete_file_tool]
+TOOLS = [open_file, read_file, write_file, close_file, play_pause_audio, delete_file_tool]
 
 # tool name -> UI event sent to the browser on success
 UI_EVENTS = {
     "open_file": lambda a: {"type": "open_file", "name": a.get("name", "")},
     "write_file": lambda a: {"type": "file_changed", "name": a.get("name", ""),
                              "kind": file_kind(a.get("name", ""))},
+    "close_file": lambda a: {"type": "close_file", "name": a.get("name", "")},
+    "play_pause_audio": lambda a: {"type": "toggle_audio", "name": a.get("name", "")},
     "delete_file": lambda a: {"type": "file_deleted", "name": a.get("name", "")},
 }
 
@@ -172,6 +208,9 @@ def build_agent(open_files: list, selection: dict = None) -> Agent:
         "write_file on an image or audio file: you cannot see or hear their content, "
         "and opening them already shows them to the user.",
         "- delete_file works on any file type.",
+        "- close_file closes a window that is open on screen (it does not delete anything). "
+        "If asked to close a file that is not open, just say it is not open — never open it first.",
+        "- play_pause_audio starts or pauses an audio file; it opens the player if needed.",
     ]
     if selection:
         lines.append(
@@ -220,7 +259,7 @@ async def agent_events(req: ChatRequest) -> AsyncIterator[str]:
             agent,
             input=history[-MAX_HISTORY:] + [{"role": "user", "content": req.message}],
             max_turns=MAX_TURNS,
-            context={"selection": selection},
+            context={"selection": selection, "open_files": list(req.open_files)},
         )
         async for event in result.stream_events():
             if event.type == "raw_response_event":
