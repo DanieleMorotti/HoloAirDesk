@@ -54,6 +54,7 @@ and shuts everything down together on Ctrl-C.
 | Pinch inside a text file | Slide vertically to scroll, horizontally to select text |
 | Both hands pinch a window | Resize by pulling apart / together |
 | Clap | Close every open window |
+| Back of open hand held up 1.5s | Gather all windows into your hand — fist closes them, turning/dropping the hand releases them |
 
 ### Head pointer mode
 
@@ -72,7 +73,10 @@ live at the top of `static/js/headpointer.js`.
 
 Click the mic (bottom right), speak (English or Italian), click again to stop.
 The transcription is sent to HOLO, which can call tools:
-`open_file`, `read_file`, `write_file`, `replace_selected_text`, `delete_file`.
+`open_file`, `read_file`, `write_file`, `replace_selected_text`, `close_file`,
+`play_audio`, `pause_audio`, `delete_file` — so "play the ambient theme",
+"stop the music" or "close the todo list" just work (it always knows which
+files are open and which audio is playing).
 Text selected by pinch-dragging inside a text window rides along with the
 next voice message ("fix this sentence" just works). If HOLO modifies a file
 that is open on screen, the window refreshes live. HOLO always knows which

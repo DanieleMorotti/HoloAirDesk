@@ -2,6 +2,11 @@
 
 Proposals for this branch. Status: [ ] proposed · [~] in progress · [x] done · [✗] tried & rejected
 
+## L. [x] Gather gesture (existing tracking) — wow 5/5, effort 3/5
+Back of the open hand held up 1.5s: a progress ring charges, every window
+condenses into an orbit around the hand and follows it; fist closes them
+all, turning or dropping the hand releases them back. Merged to main.
+
 ## A. [✗] Hologram backdrop (Image Segmenter) — wow 5/5, effort 3/5
 > Tried on 2026-08-21, rejected: cutout quality not convincing. Commit dropped.
 Replace the dimmed webcam with a real hologram of you: selfie segmentation
