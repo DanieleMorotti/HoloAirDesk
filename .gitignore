@@ -1,6 +1,6 @@
 .DS_Store
+__MACOSX/
 __pycache__/
-*.pyc
 logs/
 certs/
 # large model weights are not tracked
