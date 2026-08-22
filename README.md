@@ -1,4 +1,4 @@
-# HoloSpace AI
+# HoloAirDesk AI
 
 A Jarvis-style holographic desktop in the browser. Your hands, tracked through
 the webcam, become glowing pointers: pinch to click, hold the pinch to drag

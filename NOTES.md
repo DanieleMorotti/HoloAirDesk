@@ -1,6 +1,6 @@
 # Future ideas
 
-Things that would fit HoloSpace well, roughly ordered by coolness/effort ratio.
+Things that would fit HoloAirDesk well, roughly ordered by coolness/effort ratio.
 
 ## Interaction
 - **Grab-to-throw physics**: give windows momentum when released mid-drag, with

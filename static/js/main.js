@@ -1,4 +1,4 @@
-// HoloSpace AI — boot orchestration.
+// HoloAirDesk AI — boot orchestration.
 import { openCamera, createLandmarker, startTracking } from "/js/tracking.js";
 import { GestureEngine } from "/js/gestures.js";
 import * as interactions from "/js/interactions.js";

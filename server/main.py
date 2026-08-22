@@ -6,7 +6,7 @@ from fastapi.staticfiles import StaticFiles
 from . import agent, asr, files
 from .config import LIBRARY_DIR, LLAMA_URL, STATIC_DIR, WHISPER_URL
 
-app = FastAPI(title="HoloSpace AI")
+app = FastAPI(title="HoloAirDesk AI")
 
 LIBRARY_DIR.mkdir(exist_ok=True)
 
