@@ -4,7 +4,7 @@ from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 
 from . import agent, asr, files
-from .config import LIBRARY_DIR, LLAMA_URL, STATIC_DIR, WHISPER_URL
+from .config import LIBRARY_DIR, LLAMA_URL, STATIC_DIR, VISION_ONLY, WHISPER_URL
 
 app = FastAPI(title="HoloAirDesk AI")
 
@@ -18,7 +18,9 @@ app.include_router(agent.router)
 @app.get("/api/health")
 async def health():
     """Boot screen polls this to show which subsystems are online."""
-    status = {"app": True, "llm": False, "asr": False}
+    status = {"app": True, "llm": False, "asr": False, "vision_only": VISION_ONLY}
+    if VISION_ONLY:
+        return status
     async with httpx.AsyncClient(timeout=2) as client:
         for key, url in (("llm", f"{LLAMA_URL}/health"), ("asr", f"{WHISPER_URL}/")):
             try:

@@ -1,10 +1,12 @@
 # HoloAirDesk AI
 
-> **A just-for-fun experimental project** — a Jarvis-style holographic desktop that runs in your browser and entirely on your device. Implemented with our close friend **Claude Fable 5**.
+> **A just-for-fun experimental project** — a Jarvis-style holographic desktop that runs in your browser and entirely on your device. Implemented with our mutual friend **Claude Fable 5**.
 
 Your hands, **tracked** through the webcam, become glowing pointers: **pinch** to click, hold the pinch to **drag** windows around, pinch with both hands to **resize** them, and **clap** to clear the space. A local **voice assistant** (HOLO) opens, reads, writes, and deletes files in your library.
 
-<!-- Demo placeholder: add a GIF or MP4 showing the app here. -->
+<p align="center" width="100%">
+<video src="./short_demo.mp4" width="80%" controls></video>
+</p>
 
 > **Platform status:** this release has been tested only on **macOS** (Apple Silicon), specifically a **MacBook Pro** with M3 Pro and **36 GB RAM**. A **Windows** version lives on a separate branch and is still being tested; it may be integrated later.
 
@@ -23,10 +25,10 @@ Your hands, **tracked** through the webcam, become glowing pointers: **pinch** t
 
 - **macOS on Apple Silicon** with Metal support and a webcam
 - **Python 3.10+** (the Agents SDK requires it)
-- `llama.cpp` and `whisper.cpp` (both available through Homebrew)
-- `ffmpeg`
+- `llama.cpp` and `whisper.cpp` (both available through Homebrew) — *not needed with `--vision-only`, see below*
+- `ffmpeg` — *not needed with `--vision-only`*
 - Enough memory for the selected local models; the only tested configuration is the M3 Pro / 36 GB setup noted above
-- Model weights in `models/` (not tracked by Git):
+- Model weights in `models/` (not tracked by Git) — *not needed with `--vision-only`*:
   - `LFM2.5-2.6B-Q8_0.gguf` — default agent model
   - `Qwen3.5-4B-Q8_0.gguf` — optional agent model
   - `ggml-large-v3-turbo-q5_0.bin` — speech-to-text model
@@ -55,9 +57,22 @@ Other model formats, sizes, platforms, and hardware configurations may work, but
 HOLO_MODEL=qwen ./run.sh  # use Qwen3.5-4B as the agent
 HOLO_ASR_LANG=it ./run.sh # pin speech language (default: auto EN/IT, ~+0.8 s)
 ./run.sh --lan            # HTTPS on 0.0.0.0:8443 for other LAN devices
+./run.sh --vision-only    # gestures + windows only, no LLM / speech (see below)
 ```
 
-`run.sh` starts `llama-server` (`:8080`), `whisper-server` (`:8091`), and the web app, then shuts everything down together on Ctrl-C.
+`run.sh` starts `llama-server` (`:8080`), `whisper-server` (`:8091`), and the web app, then shuts everything down together on Ctrl-C. Flags can be combined (`./run.sh --lan --vision-only`).
+
+### Vision-only mode (no llama.cpp / whisper.cpp)
+
+If you just want to try the hand tracking, gestures, head pointer and window management — or you don't have `llama.cpp`, `whisper.cpp`, `ffmpeg` or the model weights installed, just run:
+
+```bash
+./run.sh --vision-only
+```
+
+In this mode `run.sh` starts only the web app: no `llama-server`, no `whisper-server`, no model files required (only the Python `.venv` and a webcam). The boot screen shows **REASONING CORE** and **AUDIO TRANSCODER** as `DISABLED`, the mic button is hidden and the voice assistant is off; everything else (tracking, pinch/drag/resize, clap, gather, head pointer, library windows, audio/image viewers) works as usual.
+
+Under the hood the flag exports `HOLO_VISION_ONLY=1`, which the server reports in `/api/health`; you can set that variable yourself if you launch `uvicorn server.main:app` manually.
 
 > The webcam only works in a **secure context**: `http://localhost` is fine, but to open the app from another machine you must use `--lan` (self-signed HTTPS — accept the browser warning once).
 

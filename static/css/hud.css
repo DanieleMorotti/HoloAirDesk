@@ -443,6 +443,9 @@ button.g-hover, .dock-btn.g-hover, .file-card.g-hover { outline: 1px solid var(-
 #boot-checks li { display: flex; justify-content: space-between; padding: 4px 0; border-bottom: 1px solid rgba(78,225,255,.09); }
 #boot-checks li.ok { color: #7dffb0; }
 #boot-checks li.fail { color: var(--red); }
+#boot-checks li.off { color: rgba(78,225,255,.4); }
+/* --vision-only: no assistant sidecars */
+body.vision-only #mic { display: none; }
 #boot-checks li em { font-style: normal; }
 #boot-msg { font-family: var(--font-mono); font-size: 12px; color: var(--cyan); opacity: .75; letter-spacing: 1px; min-height: 16px; }
 

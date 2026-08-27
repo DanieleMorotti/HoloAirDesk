@@ -8,12 +8,14 @@ export function toast(text) {
   setTimeout(() => t.remove(), 3000);
 }
 
+// ok: true = ONLINE, false = OFFLINE, null = DISABLED (vision-only mode)
 export function setCheck(name, ok) {
   const li = document.querySelector(`#boot-checks li[data-check="${name}"]`);
   if (!li) return;
-  li.classList.toggle("ok", ok);
-  li.classList.toggle("fail", !ok);
-  li.querySelector("em").textContent = ok ? "ONLINE" : "OFFLINE";
+  li.classList.toggle("ok", ok === true);
+  li.classList.toggle("fail", ok === false);
+  li.classList.toggle("off", ok === null);
+  li.querySelector("em").textContent = ok === null ? "DISABLED" : ok ? "ONLINE" : "OFFLINE";
 }
 
 export function bootMessage(text) {

@@ -13,6 +13,13 @@ import { sfx } from "/js/sfx.js";
 async function pollHealth() {
   try {
     const s = await (await fetch("/api/health")).json();
+    if (s.vision_only) {
+      // run.sh --vision-only: no assistant sidecars, hide the voice UI
+      hud.setCheck("llm", null);
+      hud.setCheck("asr", null);
+      document.body.classList.add("vision-only");
+      return;
+    }
     hud.setCheck("llm", !!s.llm);
     hud.setCheck("asr", !!s.asr);
     if (!s.llm || !s.asr) setTimeout(pollHealth, 2500); // sidecars may still be loading

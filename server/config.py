@@ -12,6 +12,8 @@ APP_PORT = int(os.environ.get("HOLO_PORT", "8000"))
 # Sidecar inference servers (spawned by run.sh)
 LLAMA_URL = os.environ.get("HOLO_LLAMA_URL", "http://127.0.0.1:8080")
 WHISPER_URL = os.environ.get("HOLO_WHISPER_URL", "http://127.0.0.1:8091")
+# Set by `run.sh --vision-only`: no LLM / ASR sidecars, the UI hides the assistant.
+VISION_ONLY = os.environ.get("HOLO_VISION_ONLY", "0").lower() in ("1", "true", "yes")
 
 TEXT_EXT = {".txt", ".md", ".json", ".csv", ".log", ".py", ".js", ".html", ".css", ".yaml", ".yml"}
 IMAGE_EXT = {".png", ".jpg", ".jpeg", ".gif", ".webp", ".svg", ".bmp"}
