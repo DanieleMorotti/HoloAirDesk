@@ -1,12 +1,33 @@
-# HoloAirDesk AI
+<h1 align="center">HoloAirDesk <img src="static/favicon.svg" width="56" height="56" alt="" valign="middle"></h1>
 
-> **A just-for-fun experimental project** — a Jarvis-style holographic desktop that runs in your browser and entirely on your device. Implemented with our mutual friend **Claude Fable 5**.
+<p align="center">
+  A local, browser-based holographic desktop controlled with hand gestures and voice.
+</p>
+
+*A just-for-fun experimental project, implemented with our mutual friend **Claude Fable 5**.*
 
 Your hands, **tracked** through the webcam, become glowing pointers: **pinch** to click, hold the pinch to **drag** windows around, pinch with both hands to **resize** them, and **clap** to clear the space. A local **voice assistant** (HOLO) opens, reads, writes, and deletes files in your library.
 
+> **Platform status:** this release has been tested only on **macOS** (Apple Silicon), specifically a **MacBook Pro** with M3 Pro and **36 GB RAM**. A **Windows** version lives on a separate branch and is still being tested; it may be integrated later.
+
+## Contents
+
+- [Demo](#demo)
+- [Stack](#stack)
+- [Minimum requirements](#minimum-requirements)
+- [Tested models](#tested-models)
+- [Run](#run)
+- [Gestures](#gestures)
+- [Voice assistant](#voice-assistant)
+- [Library](#library)
+- [Layout](#layout)
+- [Credits](#credits)
+
+## Demo
+
 https://github.com/user-attachments/assets/be00a76c-831a-4084-b48e-1c704ff3c238
 
-> **Platform status:** this release has been tested only on **macOS** (Apple Silicon), specifically a **MacBook Pro** with M3 Pro and **36 GB RAM**. A **Windows** version lives on a separate branch and is still being tested; it may be integrated later.
+*The speech-to-text transcription is imperfect in this recording, but HOLO still completes the task from context.*
 
 ## Stack
 

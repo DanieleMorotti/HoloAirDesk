@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# HoloAirDesk AI launcher: starts the LLM server, the ASR server and the web app.
+# HoloAirDesk launcher: starts the LLM server, the ASR server and the web app.
 #
 #   ./run.sh                # LFM (default, fastest)
 #   HOLO_MODEL=qwen ./run.sh
