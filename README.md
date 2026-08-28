@@ -4,9 +4,7 @@
 
 Your hands, **tracked** through the webcam, become glowing pointers: **pinch** to click, hold the pinch to **drag** windows around, pinch with both hands to **resize** them, and **clap** to clear the space. A local **voice assistant** (HOLO) opens, reads, writes, and deletes files in your library.
 
-<p align="center" width="100%">
-<video src="./short_demo.mp4" width="85%" controls></video>
-</p>
+https://github.com/user-attachments/assets/be00a76c-831a-4084-b48e-1c704ff3c238
 
 > **Platform status:** this release has been tested only on **macOS** (Apple Silicon), specifically a **MacBook Pro** with M3 Pro and **36 GB RAM**. A **Windows** version lives on a separate branch and is still being tested; it may be integrated later.
 
