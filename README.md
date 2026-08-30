@@ -25,7 +25,9 @@ Your hands, **tracked** through the webcam, become glowing pointers: **pinch** t
 
 ## Demo
 
-https://github-production-user-asset-6210df.s3.amazonaws.com/58258368/642741380-be00a76c-831a-4084-b48e-1c704ff3c238.mp4
+<p align="center">
+  <img src="demo.gif" alt="Short video demo as a GIF" width="85%">
+</p>
 
 *The speech-to-text transcription is imperfect in this recording, but HOLO still completes the task from context.*
 
